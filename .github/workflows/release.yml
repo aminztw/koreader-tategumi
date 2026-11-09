@@ -396,7 +396,7 @@ jobs:
             echo "RELEASE_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
           fi
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: artifacts/
 
