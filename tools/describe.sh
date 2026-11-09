@@ -26,6 +26,8 @@ fi
 # Only append date if we're not on a whole version, like v2018.11.
 case "${version}" in *-*) version="${version}_${release_date}" ;; esac
 
-release_epoch="$(git log -1 --format='%cs' "${epoch_rev}")"
+if ! release_epoch="$(git log -1 --format='%cs' "${epoch_rev}" 2>/dev/null)" || [[ -z "${release_epoch}" ]]; then
+    release_epoch="${release_date}"
+fi
 
 printf '%s\n' "${version}" "${release_date}" "${release_epoch}"
