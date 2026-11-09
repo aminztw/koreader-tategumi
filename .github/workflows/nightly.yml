@@ -28,7 +28,7 @@ jobs:
       should_build: ${{ steps.check.outputs.should_build }}
       nightly_version: ${{ steps.version.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Check changes since last nightly
@@ -69,7 +69,7 @@ jobs:
     if: needs.check-changes.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - name: Load every platform C definition with LuaJIT
@@ -95,7 +95,7 @@ jobs:
       TARGET: kindle
       RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Fetch submodules
@@ -125,7 +125,7 @@ jobs:
       TARGET: kindlehf
       RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Fetch submodules
@@ -155,7 +155,7 @@ jobs:
       TARGET: kindlepw2
       RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Fetch submodules
@@ -185,7 +185,7 @@ jobs:
       TARGET: kobo
       RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Fetch submodules
@@ -215,7 +215,7 @@ jobs:
       TARGET: pocketbook
       RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Fetch submodules
@@ -245,7 +245,7 @@ jobs:
       TARGET: pocketbookhf
       RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Fetch submodules
@@ -275,7 +275,7 @@ jobs:
       TARGET: cervantes
       RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Fetch submodules
@@ -305,7 +305,7 @@ jobs:
       TARGET: remarkable
       RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Fetch submodules
@@ -335,7 +335,7 @@ jobs:
       TARGET: remarkable-aarch64
       RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Fetch submodules
@@ -366,7 +366,7 @@ jobs:
       ANDROID_ARCH: arm
       RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Fetch submodules
@@ -407,7 +407,7 @@ jobs:
       ANDROID_ARCH: arm64
       RELEASE_TAG: ${{ needs.check-changes.outputs.nightly_version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Fetch submodules
@@ -444,7 +444,7 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 

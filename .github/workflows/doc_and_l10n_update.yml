@@ -33,13 +33,13 @@ jobs:
     steps:
       - &CHECKOUT
         name: Checkout
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7
         with:
           clean: false
           fetch-depth: 1
           show-progress: false
       - name: Checkout documentation
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7
         with:
           clean: false
           fetch-depth: 1
@@ -64,7 +64,7 @@ jobs:
     steps:
       - *CHECKOUT
       - name: Checkout translations
-        uses: actions/checkout@v7.0.1
+        uses: actions/checkout@v7
         with:
           clean: false
           fetch-depth: 1

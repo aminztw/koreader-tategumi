@@ -29,7 +29,7 @@ jobs:
     name: LuaJIT FFI declarations
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           submodules: recursive
@@ -53,7 +53,7 @@ jobs:
       BASH_ENV: /home/ko/.bashrc
       TARGET: kindle
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -81,7 +81,7 @@ jobs:
       BASH_ENV: /home/ko/.bashrc
       TARGET: kindlehf
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -109,7 +109,7 @@ jobs:
       BASH_ENV: /home/ko/.bashrc
       TARGET: kindlepw2
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -137,7 +137,7 @@ jobs:
       BASH_ENV: /home/ko/.bashrc
       TARGET: kobo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -165,7 +165,7 @@ jobs:
       BASH_ENV: /home/ko/.bashrc
       TARGET: pocketbook
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -193,7 +193,7 @@ jobs:
       BASH_ENV: /home/ko/.bashrc
       TARGET: pocketbookhf
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -221,7 +221,7 @@ jobs:
       BASH_ENV: /home/ko/.bashrc
       TARGET: cervantes
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -249,7 +249,7 @@ jobs:
       BASH_ENV: /home/ko/.bashrc
       TARGET: remarkable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -277,7 +277,7 @@ jobs:
       BASH_ENV: /home/ko/.bashrc
       TARGET: remarkable-aarch64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -306,7 +306,7 @@ jobs:
       TARGET: android
       ANDROID_ARCH: arm
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -345,7 +345,7 @@ jobs:
       TARGET: android
       ANDROID_ARCH: arm64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
@@ -380,7 +380,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
