@@ -54,6 +54,10 @@ if not is_cbb_enabled then
 end
 
 local lang_locale = G_reader_settings:readSetting("language")
+if not lang_locale then
+    lang_locale = "zh_TW"
+    G_reader_settings:saveSetting("language", lang_locale)
+end
 -- Allow quick switching to Arabic for testing RTL/UI mirroring
 if os.getenv("KO_RTL") then lang_locale = "ar" end
 local _ = require("gettext")
