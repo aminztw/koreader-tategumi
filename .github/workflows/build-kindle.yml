@@ -1,0 +1,173 @@
+name: Build & Release (KindleHF & Kobo)
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release 版本標籤名稱 (例如 v2026.11-zh_TW)'
+        type: string
+        default: 'v2026.11-zh_TW'
+      publish_release:
+        description: '編譯完成後自動發布至 GitHub Releases'
+        type: boolean
+        default: true
+  push:
+    tags:
+      - 'v*'
+      - 'kindle-*'
+      - 'kobo-*'
+      - 'release-*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.target }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: kindlehf
+            docker_image: koreader/kokindle:2.1.0-22.04
+          - target: kobo
+            docker_image: koreader/kokobo:2.1.0-22.04
+
+    steps:
+      - name: Checkout repository (with submodules)
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Apply custom Traditional Chinese translations
+        run: |
+          if [ -d "l10n_custom/zh_TW" ]; then
+            cp l10n_custom/zh_TW/koreader.po l10n/zh_TW/koreader.po
+            cp l10n_custom/zh_TW/koreader.mo l10n/zh_TW/koreader.mo
+            echo "Successfully applied custom zh_TW translations"
+          fi
+
+      - name: Apply crengine performance patch
+        run: |
+          if [ -f "tools/crengine-perf.patch" ]; then
+            git -C base/thirdparty/kpvcrlib/crengine apply "$PWD/tools/crengine-perf.patch"
+            echo "Successfully applied crengine-perf.patch"
+          fi
+
+      - name: Optimize Network and Force IPv4
+        run: |
+          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1 || true
+          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1 || true
+          sudo sysctl -w net.ipv6.conf.lo.disable_ipv6=1 || true
+          echo "prefer-family = IPv4" | sudo tee -a /etc/wgetrc
+          echo "precedence ::ffff:0:0/96 100" | sudo tee -a /etc/gai.conf
+
+      - name: Cache third-party source downloads
+        uses: actions/cache@v6
+        with:
+          path: base/thirdparty/*/build/downloads
+          key: thirdparty-src-${{ hashFiles('base/thirdparty/*/CMakeLists.txt') }}
+          restore-keys: |
+            thirdparty-src-
+
+      - name: Pre-download third-party source packages
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tools/predownload_thirdparty.py
+
+      - name: Patch koenv download timeouts and force IPv4
+        run: |
+          sed -i 's/@WGET_COMMAND@ --connect-timeout=15 --dns-timeout=10 --read-timeout=10 --tries=1/@WGET_COMMAND@ --inet4-only --connect-timeout=30 --dns-timeout=30 --read-timeout=60 --tries=3/g' base/thirdparty/cmake_modules/koenv.sh
+
+      - name: Build ${{ matrix.target }} package via Docker
+        run: |
+          docker run --rm --network host \
+            -v "$PWD:/home/ko/koreader" \
+            -w /home/ko/koreader \
+            --entrypoint bash \
+            "${{ matrix.docker_image }}" \
+            -lc "echo 'prefer-family = IPv4' > /home/ko/.wgetrc && echo 'ipv4' > /home/ko/.curlrc && source /home/ko/.bashrc && ./kodev release ${{ matrix.target }}"
+
+      - name: Fix file permissions
+        if: always()
+        run: |
+          sudo chown -R $USER:$USER .
+
+      - name: Find output package
+        id: pkg
+        run: |
+          target="${{ matrix.target }}"
+          pkg=$(ls koreader-${target}-*.zip 2>/dev/null | head -1 || find . -name "koreader-${target}-*.zip" | head -1)
+          if [ -z "$pkg" ]; then
+            echo "::error::No package found for $target"
+            ls -la
+            exit 1
+          fi
+          echo "path=$pkg" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "$pkg")" >> "$GITHUB_OUTPUT"
+          echo "Package created: $pkg"
+          ls -lh "$pkg"
+
+      - name: Upload ${{ matrix.target }} Release Zip
+        uses: actions/upload-artifact@v7
+        with:
+          name: koreader-${{ matrix.target }}
+          path: ${{ steps.pkg.outputs.path }}
+          if-no-files-found: error
+
+  release:
+    name: Publish to GitHub Releases
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event.inputs.publish_release != 'false'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Download all built packages
+        uses: actions/download-artifact@v8
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ls -lh release-assets/
+          if [[ "${{ github.event_name }}" == "push" && "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          elif [[ -n "${{ github.event.inputs.release_tag }}" ]]; then
+            TAG="${{ github.event.inputs.release_tag }}"
+          else
+            TAG="v2026.11-zh_TW"
+          fi
+
+          TITLE="KOReader 縱書版 ${TAG} (KindleHF & Kobo)"
+          NOTES="### 📦 包含安裝包 (Packages)
+          - **Kindle (韌體 ≥ 5.16.3，適用 Kindle Basic 2024 / PW4+ / Oasis 2+ / Scribe)**：\`$(basename release-assets/koreader-kindlehf-*.zip)\`
+          - **Kobo 全系列閱讀器**：\`$(basename release-assets/koreader-kobo-*.zip)\`
+
+          ### ✨ 特色功能
+          - 支援 EPUB **日文/中文縱書 (縦書き) 與直排閱讀** (\`writing-mode: vertical-rl\`) 與直排選取標記
+          - 最佳化 HarfBuzz TTB 縱書字形排版快取與 DocFragment 暖快取
+          - 修復 Kindle 韌體 5.20+ / MTK 機型之虛擬鍵盤彈出問題
+          - 補齊完整 **繁體中文 (zh_TW)** 介面語系翻譯 (100% 覆蓋率)"
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists, uploading and updating assets..."
+            gh release upload "$TAG" release-assets/*.zip --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes "$NOTES"
+          else
+            echo "Creating new GitHub Release $TAG..."
+            gh release create "$TAG" release-assets/*.zip \
+              --target "${GITHUB_SHA}" \
+              --title "$TITLE" \
+              --notes "$NOTES"
+          fi
