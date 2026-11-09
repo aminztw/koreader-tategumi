@@ -34,4 +34,4 @@ pot: po
 		-o $(TEMPLATE_DIR)/$(DOMAIN).pot
 
 po:
-	git submodule update --remote l10n
+	@true
