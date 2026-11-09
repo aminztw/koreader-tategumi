@@ -48,7 +48,10 @@ EOF
 for arg in "$@"; do
     case "${arg}" in
         --apply-crengine-perf-patch) APPLY_CRENGINE_PATCH=true ;;
-        -h | --help) usage; exit 0 ;;
+        -h | --help)
+            usage
+            exit 0
+            ;;
         *) TEST_ARGS+=("${arg}") ;;
     esac
 done
