@@ -107,7 +107,7 @@ jobs:
       - name: Rename for nightly
         run: |
           cp koreader-kindle-*.zip koreader-kindle-latest-nightly.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: kindle
           if-no-files-found: error
@@ -137,7 +137,7 @@ jobs:
       - name: Rename for nightly
         run: |
           cp koreader-kindlehf-*.zip koreader-kindlehf-latest-nightly.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: kindlehf
           if-no-files-found: error
@@ -167,7 +167,7 @@ jobs:
       - name: Rename for nightly
         run: |
           cp koreader-kindlepw2-*.zip koreader-kindlepw2-latest-nightly.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: kindlepw2
           if-no-files-found: error
@@ -197,7 +197,7 @@ jobs:
       - name: Rename for nightly
         run: |
           cp koreader-kobo-*.zip koreader-kobo-latest-nightly.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: kobo
           if-no-files-found: error
@@ -227,7 +227,7 @@ jobs:
       - name: Rename for nightly
         run: |
           cp koreader-pocketbook-*.zip koreader-pocketbook-latest-nightly.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pocketbook
           if-no-files-found: error
@@ -257,7 +257,7 @@ jobs:
       - name: Rename for nightly
         run: |
           cp koreader-pocketbookhf-*.zip koreader-pocketbookhf-latest-nightly.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pocketbookhf
           if-no-files-found: error
@@ -287,7 +287,7 @@ jobs:
       - name: Rename for nightly
         run: |
           cp koreader-cervantes-*.zip koreader-cervantes-latest-nightly.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cervantes
           if-no-files-found: error
@@ -317,7 +317,7 @@ jobs:
       - name: Rename for nightly
         run: |
           cp koreader-remarkable-*.zip koreader-remarkable-latest-nightly.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: remarkable
           if-no-files-found: error
@@ -347,7 +347,7 @@ jobs:
       - name: Rename for nightly
         run: |
           cp koreader-remarkable-aarch64-*.zip koreader-remarkable-aarch64-latest-nightly.zip
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: remarkable-aarch64
           if-no-files-found: error
@@ -389,7 +389,7 @@ jobs:
       - name: Rename for nightly
         run: cp koreader-android-*.apk koreader-android-latest-nightly.apk 2>/dev/null || \
              cp koreader-android-*.zip koreader-android-latest-nightly.zip 2>/dev/null || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: android-arm
           path: koreader-android-latest-nightly.*
@@ -429,7 +429,7 @@ jobs:
           rm -f /tmp/release.keystore
       - name: Rename for nightly
         run: cp koreader-android-arm64-*.apk koreader-android-arm64-latest-nightly.apk || true
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: android-arm64
           path: koreader-android-arm64-latest-nightly.apk
