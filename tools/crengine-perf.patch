@@ -1,0 +1,784 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 5fb1c90..fd73e5d 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -6,6 +6,7 @@ if(NOT CMAKE_BUILD_TYPE)
+     set(CMAKE_BUILD_TYPE Release CACHE STRING "build type")
+ endif()
+ option(BUILD_SHARED_LIBS "build a shared library" ON)
++option(BUILD_TESTING "build regression tests" OFF)
+ 
+ project(koreader LANGUAGES C CXX)
+ 
+diff --git a/crengine/include/lvfntman.h b/crengine/include/lvfntman.h
+index e67fd0d..eeb7399 100644
+--- a/crengine/include/lvfntman.h
++++ b/crengine/include/lvfntman.h
+@@ -865,6 +865,9 @@ public:
+     /// different local() targets. Returns false if no such family exists.
+     virtual bool RegisterDocumentFontAlias(int /*documentId*/, lString8 /*alias*/, lString8 /*localName*/, int /*docFragmentIdx*/ = -1) { return false; }
+ 
++    /// Returns true if any font face or alias in the registry for documentId is scoped to specific DocFragments.
++    virtual bool hasDocFragmentScopedFonts(int /*documentId*/) { return false; }
++
+     /// Set the primary reading font used as the step-2 fallback for all generic families.
+     virtual void SetPrimaryFont( lString8 /*face*/ ) {}
+     /// Set the fallback font for the CSS generic family the given face belongs to.
+diff --git a/crengine/include/lvfntman_vert.h b/crengine/include/lvfntman_vert.h
+index 0d4cb57..eb9663f 100644
+--- a/crengine/include/lvfntman_vert.h
++++ b/crengine/include/lvfntman_vert.h
+@@ -309,6 +309,32 @@ private:
+     LVHashTable<lUInt32, VertBodyGlyphMetrics> * _cache;
+ };
+ 
++struct VertGlyphOrigin {
++    lInt32 x;
++    lInt32 y;
++    bool   found;
++};
++
++// Per-face cache of HarfBuzz TTB glyph origins.  hb-ft answers every
++// v-origin query with a full (usually auto-hinted) FT_Load_Glyph, which
++// made it dominate vertical layout and drawing time.  getFont() returns a
++// sub-font of  whose v-origin callback memoizes the parent's
++// answers, so shaping results stay identical.  clear() must be called
++// before  is destroyed or recreated.
++class LVFontVertOriginCache {
++public:
++    LVFontVertOriginCache() : _font(NULL), _cache(NULL) {}
++    ~LVFontVertOriginCache() { clear(); delete _cache; }
++
++    hb_font_t * getFont(hb_font_t * parent);
++    bool getOrigin(hb_font_t * parent, lUInt32 glyph_index, lInt32 & x, lInt32 & y);
++    void clear();
++
++private:
++    hb_font_t * _font;
++    LVHashTable<lUInt32, VertGlyphOrigin> * _cache;
++};
++
+ #include "lvfntman_vert_buffer.h"
+ 
+ #endif  // __LV_FNT_MAN_VERT_H_INCLUDED__
+diff --git a/crengine/src/lvfntman.cpp b/crengine/src/lvfntman.cpp
+index 8e49840..664d43c 100644
+--- a/crengine/src/lvfntman.cpp
++++ b/crengine/src/lvfntman.cpp
+@@ -1706,13 +1706,19 @@ protected:
+     // Fork-only: per-face TTB metrics cache for vertical-rl/lr rendering.
+     LVFontVertGlyphMetricsCache      _vert_metrics_cache;
+     LVFontVertBodyMetricsCache       _vert_body_metrics_cache;
++    lUInt64                          _vert_fe_present_mask = 0;
++    bool                             _vert_fe_mask_initialized = false;
+     bool           _drawMonochrome;
+     hinting_mode_t _hintingMode;
+     kerning_mode_t _kerningMode;
+     bool           _fallbackFontIsSet;
+     LVFontRef      _fallbackFont;
++    bool           _fallbackFontPreservedIsSet;
++    LVFontRef      _fallbackFontPreserved;
+     bool           _nextFallbackFontIsSet;
+     LVFontRef      _nextFallbackFont;
++    bool           _nextFallbackFontPreservedIsSet;
++    LVFontRef      _nextFallbackFontPreserved;
+     LVFontRef      _DecimalListItemFont;
+     LVFontRef      _BulletListItemFont;
+     int            _synth_weight; // fake/synthesized weight
+@@ -1722,6 +1728,7 @@ protected:
+     LVFontVariations _variations; // variable font axis values applied to this instance
+ #if USE_HARFBUZZ==1
+     hb_font_t* _hb_font;
++    LVFontVertOriginCache _hb_vert_origin_cache; // fork-only: TTB shaping sub-font
+     hb_buffer_t* _hb_buffer;
+     LVArray<hb_feature_t> _hb_features;
+     // Fork (vertical-rl): tracks the is_vertical state _hb_features was built
+@@ -1756,10 +1763,18 @@ public:
+             _fallbackFontIsSet = false;
+             _fallbackFont.Clear();
+         }
++        if ( _fallbackFontPreserved.get() == ptr ) {
++            _fallbackFontPreservedIsSet = false;
++            _fallbackFontPreserved.Clear();
++        }
+         if ( _nextFallbackFont.get() == ptr ) {
+             _nextFallbackFontIsSet = false;
+             _nextFallbackFont.Clear();
+         }
++        if ( _nextFallbackFontPreserved.get() == ptr ) {
++            _nextFallbackFontPreservedIsSet = false;
++            _nextFallbackFontPreserved.Clear();
++        }
+         if ( _DecimalListItemFont.get() == ptr )
+             _DecimalListItemFont.Clear();
+         if ( _BulletListItemFont.get() == ptr )
+@@ -1769,8 +1784,12 @@ public:
+     virtual void clearFontRefs() {
+         _fallbackFontIsSet = false;
+         _fallbackFont.Clear();
++        _fallbackFontPreservedIsSet = false;
++        _fallbackFontPreserved.Clear();
+         _nextFallbackFontIsSet = false;
+         _nextFallbackFont.Clear();
++        _nextFallbackFontPreservedIsSet = false;
++        _nextFallbackFontPreserved.Clear();
+         _DecimalListItemFont.Clear();
+         _BulletListItemFont.Clear();
+     }
+@@ -1780,6 +1799,8 @@ public:
+     virtual void setFallbackFont( LVFontRef font ) {
+         _fallbackFont = font;
+         _fallbackFontIsSet = !font.isNull();
++        _fallbackFontPreserved = font;
++        _fallbackFontPreservedIsSet = !font.isNull();
+         clearCache();
+     }
+ 
+@@ -1790,8 +1811,13 @@ public:
+         // Returning a visually shrunk fallback there makes the ink smaller
+         // while the slot advance stays unchanged, exaggerating and varying
+         // the visible gaps between consecutive Japanese glyphs.
+-        if ( preserve_size )
+-            return fontMan->GetFallbackFont(_size, getWeight(), _italic!=0);
++        if ( preserve_size ) {
++            if ( _fallbackFontPreservedIsSet )
++                return _fallbackFontPreserved;
++            _fallbackFontPreserved = fontMan->GetFallbackFont(_size, getWeight(), _italic!=0);
++            _fallbackFontPreservedIsSet = true;
++            return _fallbackFontPreserved;
++        }
+         if ( _fallbackFontIsSet )
+             return _fallbackFont;
+         _fallbackFont = fontMan->GetFallbackFont(_size, getWeight(), _italic!=0);
+@@ -1806,14 +1832,21 @@ public:
+     virtual void setNextFallbackFont( LVFontRef font ) {
+         _nextFallbackFont = font;
+         _nextFallbackFontIsSet = !font.isNull();
++        _nextFallbackFontPreserved = font;
++        _nextFallbackFontPreservedIsSet = !font.isNull();
+         clearCache();
+     }
+ 
+     /// get next fallback font for this font (when it is already used as a fallback font)
+     LVFontRef getNextFallbackFont(bool preserve_size=false) {
+-        if ( preserve_size )
+-            return fontMan->GetFallbackFont(
++        if ( preserve_size ) {
++            if ( _nextFallbackFontPreservedIsSet )
++                return _nextFallbackFontPreserved;
++            _nextFallbackFontPreserved = fontMan->GetFallbackFont(
+                 _size, getWeight(), _italic!=0, _faceName);
++            _nextFallbackFontPreservedIsSet = true;
++            return _nextFallbackFontPreserved;
++        }
+         if ( _nextFallbackFontIsSet )
+             return _nextFallbackFont;
+         _nextFallbackFont = fontMan->GetFallbackFont(_size, getWeight(), _italic!=0, _faceName);
+@@ -1963,7 +1996,8 @@ public:
+         , _underline_offset(0), _underline_thickness(0), _extra_metric(NULL)
+         , _glyph_cache(globalCache), _drawMonochrome(false)
+         , _hintingMode(HINTING_MODE_AUTOHINT), _kerningMode(KERNING_MODE_DISABLED)
+-        , _fallbackFontIsSet(false), _nextFallbackFontIsSet(false)
++        , _fallbackFontIsSet(false), _fallbackFontPreservedIsSet(false)
++        , _nextFallbackFontIsSet(false), _nextFallbackFontPreservedIsSet(false)
+         , _synth_weight(0), _synth_weight_strength(0), _synth_weight_half_strength(0)
+         , _features(0)
+         #if USE_HARFBUZZ==1
+@@ -1996,12 +2030,29 @@ public:
+         _rsbcache.clear();
+         _vert_metrics_cache.clear();  // fork-only
+         _vert_body_metrics_cache.clear();
++        _vert_fe_present_mask = 0;
++        _vert_fe_mask_initialized = false;
+         #if USE_HARFBUZZ==1
+         _glyph_cache2.clear();
+         _width_cache2.clear();
+         #endif
+     }
+ 
++    inline bool hasVertFEGlyph(lChar32 v) {
++        if (v < 0xFE10 || v > 0xFE48)
++            return FT_Get_Char_Index(_face, v) != 0;
++        if (!_vert_fe_mask_initialized) {
++            lUInt64 mask = 0;
++            for (lChar32 cp = 0xFE10; cp <= 0xFE48; cp++) {
++                if (FT_Get_Char_Index(_face, cp) != 0)
++                    mask |= (1ULL << (cp - 0xFE10));
++            }
++            _vert_fe_present_mask = mask;
++            _vert_fe_mask_initialized = true;
++        }
++        return (_vert_fe_present_mask & (1ULL << (v - 0xFE10))) != 0;
++    }
++
+     virtual lChar32 getHyphChar() {
+         // UNICODE_SOFT_HYPHEN U+00AD was a bad choice: it's supposed to be a control code and may not
+         // have a glyph (in practice, it is there and correct in many recent fonts, but in others, it
+@@ -2237,6 +2288,7 @@ public:
+         // Also update HB load flags with the updated hinting mode.
+         // We need this destroy/create, as only these will clear some internal HB caches
+         // (ft_font->advance_cache, ft_font->cached_x_scale); hb_ft_font_set_load_flags will not.
++        _hb_vert_origin_cache.clear();
+         if (_hb_font)
+             hb_font_destroy(_hb_font);
+         _hb_font = hb_ft_font_create(_face, NULL);
+@@ -2433,6 +2485,7 @@ public:
+ 
+         #if USE_HARFBUZZ==1
+         if (FT_Err_Ok == error) {
++            _hb_vert_origin_cache.clear();
+             if (_hb_font)
+                 hb_font_destroy(_hb_font);
+             _hb_font = hb_ft_font_create(_face, NULL);
+@@ -2557,6 +2610,13 @@ public:
+         return code;
+     }
+ 
++    // TTB shaping goes through a sub-font that caches glyph v-origins.
++    hb_font_t * getHBShapingFont() {
++        if (HB_DIRECTION_IS_VERTICAL(hb_buffer_get_direction(_hb_buffer)))
++            return _hb_vert_origin_cache.getFont(_hb_font);
++        return _hb_font;
++    }
++
+     bool hbCalcCharWidth(struct LVCharPosInfo* posInfo, const struct LVCharTriplet& triplet, lChar32 def_char) {
+         if (!posInfo)
+             return false;
+@@ -3173,7 +3233,7 @@ public:
+             auto subst_for_vert = [&](lChar32 ch) -> lChar32 {
+                 if (!is_vertical_subst) return ch;
+                 lChar32 v = getVertPresentationForm(ch);
+-                if (v != ch && FT_Get_Char_Index(_face, v) != 0)
++                if (v != ch && hasVertFEGlyph(v))
+                     return v;
+                 return ch;
+             };
+@@ -3236,7 +3296,7 @@ public:
+                 setupHBFeatures(is_vertical_hb);
+ 
+             // Shape
+-            hb_shape(_hb_font, _hb_buffer, _hb_features.ptr(), (unsigned int)_hb_features.length());
++            hb_shape(getHBShapingFont(), _hb_buffer, _hb_features.ptr(), (unsigned int)_hb_features.length());
+ 
+             // Harfbuzz has guessed and set a direction even if we did not provide one.
+             #ifdef DEBUG_MEASURE_TEXT
+@@ -4613,7 +4673,7 @@ public:
+             auto subst_for_vert_d = [&](lChar32 ch) -> lChar32 {
+                 if (!is_vertical_subst_d) return ch;
+                 lChar32 v = getVertPresentationForm(ch);
+-                if (v != ch && FT_Get_Char_Index(_face, v) != 0)
++                if (v != ch && hasVertFEGlyph(v))
+                     return v;
+                 return ch;
+             };
+@@ -4697,7 +4757,7 @@ public:
+             }
+ 
+             // Shape
+-            hb_shape(_hb_font, _hb_buffer, _hb_features.ptr(), (unsigned int)_hb_features.length());
++            hb_shape(getHBShapingFont(), _hb_buffer, _hb_features.ptr(), (unsigned int)_hb_features.length());
+ 
+             // If direction is RTL, hb_shape() has reversed the order of the glyphs, so
+             // they are in visual order and ready to be iterated and drawn. So,
+@@ -5801,6 +5861,7 @@ public:
+         LVLock lock(_mutex);
+         clearCache();
+         #if USE_HARFBUZZ==1
++        _hb_vert_origin_cache.clear();
+         if (_hb_font) {
+             hb_font_destroy(_hb_font);
+             _hb_font = 0;
+@@ -6980,6 +7041,23 @@ public:
+                 if (_families[i]->faceAt(j).id() == id) return true;
+         return false;
+     }
++    bool hasDocFragmentScopedFonts(int documentId) const {
++        if (documentId < 0) return false;
++        for (int i = 0; i < _families.length(); i++) {
++            const LVFontFamily* fam = _families[i];
++            for (int j = 0; j < fam->faceCount(); j++) {
++                const LVFontFace& face = fam->faceAt(j);
++                if (face.documentId == documentId && !face.docFragmentIdxSet.empty())
++                    return true;
++            }
++        }
++        for (int i = 0; i < _aliases.length(); i++) {
++            const LVFontAlias* a = _aliases[i];
++            if (a->documentId == documentId && !a->docFragmentIdxSet.empty())
++                return true;
++        }
++        return false;
++    }
+     // If a face with the given file_path+documentId is already registered,
+     // add docFragmentIdx to its allowed set and return true.  Avoids reloading
+     // the font file from disk/memory for repeat registrations from new DocFragments.
+@@ -8435,6 +8513,12 @@ public:
+         return true;
+     }
+ 
++    virtual bool hasDocFragmentScopedFonts(int documentId)
++    {
++        FONT_MAN_GUARD
++        return _registry.hasDocFragmentScopedFonts(documentId);
++    }
++
+     /// Load a font face, apply synthesis, cache the instance, and return it.
+     LVFontRef loadAndCache(const LVFontFace& face, int size, int face_size,
+                             int weight, bool italic,
+diff --git a/crengine/src/lvfntman_vert.cpp b/crengine/src/lvfntman_vert.cpp
+index 7034068..d1fd1ab 100644
+--- a/crengine/src/lvfntman_vert.cpp
++++ b/crengine/src/lvfntman_vert.cpp
+@@ -128,6 +128,12 @@ bool isUniformVerticalIdeograph(lChar32 c)
+ // LFNT_HINT_VERTICAL_MARK *before* consulting JLReqVertClass.
+ JLReqVertClass getJLReqVertClass(lChar32 c)
+ {
++    // Fast path for CJK Unified Ideographs (Ext A + main block + Compatibility):
++    // 90%+ of CJK characters fall in [0x3400, 0xFDFF], none of which are special
++    // punctuation/brackets.
++    if (c >= 0x3400 && c <= 0xFDFF)
++        return JLREQ_VERT_CJK_BODY;
++
+     // --- Opening brackets (class [1] in jfm-ujisv.lua) ---
+     switch (c) {
+         case 0x2018: // ‘
+@@ -382,6 +388,8 @@ lChar32 getVertPresentationForm(lChar32 c)
+     // unconditionally so the font's `vrt2` feature can produce composites.
+     // For fonts without composite vrt2 mappings, +vert + the
+     // needsVerticalRotation90CW fallback still gives correct vertical glyphs.
++    if (c < 0x3001 || (c > 0x3017 && c < 0xFF08) || c > 0xFF5D)
++        return c;
+     switch (c) {
+         // Punctuation
+         case 0x3001: return 0xFE11; // 、 → ︑
+@@ -761,3 +769,73 @@ void LVFontVertBodyMetricsCache::clear()
+     if (_cache)
+         _cache->clear();
+ }
++
++static hb_bool_t getCachedVertOrigin(hb_font_t * font, void * font_data,
++                                     hb_codepoint_t glyph,
++                                     hb_position_t * x, hb_position_t * y,
++                                     void * user_data)
++{
++    LVFontVertOriginCache * cache = (LVFontVertOriginCache *)font_data;
++    lInt32 ox = 0;
++    lInt32 oy = 0;
++    bool found = cache->getOrigin(hb_font_get_parent(font), glyph, ox, oy);
++    *x = ox;
++    *y = oy;
++    return found;
++}
++
++static hb_font_funcs_t * createCachedVertOriginFuncs()
++{
++    hb_font_funcs_t * funcs = hb_font_funcs_create();
++    hb_font_funcs_set_glyph_v_origin_func(funcs, getCachedVertOrigin, NULL, NULL);
++    hb_font_funcs_make_immutable(funcs);
++    return funcs;
++}
++
++hb_font_t * LVFontVertOriginCache::getFont(hb_font_t * parent)
++{
++    if (!parent)
++        return parent;
++    if (_font && hb_font_get_parent(_font) != parent)
++        clear();
++    if (_font)
++        return _font;
++    static hb_font_funcs_t * funcs = createCachedVertOriginFuncs();
++    hb_font_t * font = hb_font_create_sub_font(parent);
++    if (font == hb_font_get_empty())
++        return parent;
++    // The sub-font copies the parent's scale, ppem and variations, and
++    // delegates everything else to it.
++    hb_font_set_funcs(font, funcs, this, NULL);
++    _font = font;
++    return _font;
++}
++
++bool LVFontVertOriginCache::getOrigin(hb_font_t * parent, lUInt32 glyph_index,
++                                      lInt32 & x, lInt32 & y)
++{
++    if (!_cache)
++        _cache = new LVHashTable<lUInt32, VertGlyphOrigin>(1024);
++    VertGlyphOrigin origin;
++    if (!_cache->get(glyph_index, origin)) {
++        hb_position_t ox = 0;
++        hb_position_t oy = 0;
++        origin.found = hb_font_get_glyph_v_origin(parent, glyph_index, &ox, &oy) != 0;
++        origin.x = ox;
++        origin.y = oy;
++        _cache->set(glyph_index, origin);
++    }
++    x = origin.x;
++    y = origin.y;
++    return origin.found;
++}
++
++void LVFontVertOriginCache::clear()
++{
++    if (_font) {
++        hb_font_destroy(_font);
++        _font = NULL;
++    }
++    if (_cache)
++        _cache->clear();
++}
+diff --git a/crengine/src/lvrend.cpp b/crengine/src/lvrend.cpp
+index 56712d6..7d2e19b 100644
+--- a/crengine/src/lvrend.cpp
++++ b/crengine/src/lvrend.cpp
+@@ -98,7 +98,10 @@ static int resolveEffectiveDrawWritingMode(ldomNode *enode, LVDrawBuf &drawbuf)
+ // small call-site changes instead of scattered condition details.
+ static bool forkVerticalBoxDebugEnabled()
+ {
+-    return getenv("KO_DEBUG_VERT_BG") != NULL;
++    static int enabled = -1;
++    if ( enabled < 0 )
++        enabled = getenv("KO_DEBUG_VERT_BG") != NULL ? 1 : 0;
++    return enabled != 0;
+ }
+ 
+ static bool isForkVerticalBoxDebugClass(ldomNode *enode)
+@@ -9936,15 +9939,15 @@ void renderBlockElementEnhanced( FlowState * flow, ldomNode * enode, int x, int
+                         const formatted_line_t * line = txform->GetLineInfo(li);
+                         if ( line->inline_end > used_end )
+                             used_end = line->inline_end;
+-                        bool line_has_text = false;
+-                        for (int wi = 0; wi < line->word_count; wi++) {
+-                            const formatted_word_t * word = &line->words[wi];
+-                            if (word->flags & LTEXT_WORD_IS_PAD)
+-                                continue;
+-                            line_has_text = true;
++                        if ( text_line_count <= 1 ) {
++                            for (int wi = 0; wi < line->word_count; wi++) {
++                                const formatted_word_t * word = &line->words[wi];
++                                if (word->flags & LTEXT_WORD_IS_PAD)
++                                    continue;
++                                text_line_count++;
++                                break;
++                            }
+                         }
+-                        if ( line_has_text )
+-                            text_line_count++;
+                     }
+                     bool wrapped_full_end = text_line_count > 1;
+                     if ( wrapped_full_end ) {
+diff --git a/crengine/src/lvtextfm.cpp b/crengine/src/lvtextfm.cpp
+index 39dd304..72c5246 100644
+--- a/crengine/src/lvtextfm.cpp
++++ b/crengine/src/lvtextfm.cpp
+@@ -38,6 +38,14 @@
+ #include <hb.h>
+ #endif
+ 
++static bool verticalMarksDebugEnabled()
++{
++    static int enabled = -1;
++    if ( enabled < 0 )
++        enabled = getenv("CRE_LOG_VERT_MARKS") ? 1 : 0;
++    return enabled != 0;
++}
++
+ #if (USE_FRIBIDI==1)
+ #include <fribidi.h>
+ #endif
+@@ -2200,15 +2208,11 @@ public:
+                         if ( lastDirection < 0 )
+                             hints |= LFNT_HINT_DIRECTION_IS_RTL;
+                     }
+-                    int max_width_for_measure = 0x7FFF; //pbuffer->width,
+-                    if ( css_wm_is_vertical(m_writing_mode) ) {
+-                        max_width_for_measure = m_pbuffer->page_height;
+-                    }
+                     int chars_measured = lastFont->measureText(
+                             m_text + start,
+                             len,
+                             widths, flags,
+-                            max_width_for_measure,
++                            0x7FFF, //pbuffer->width,
+                             '?',
+                             lastSrc->lang_cfg,
+                             lastLetterSpacing,
+@@ -6943,7 +6947,7 @@ void LFormattedText::Draw( LVDrawBuf * buf, int x, int y, ldomMarkedRangeList *
+                         // needing a per-glyph offset lookup.
+                         if (is_vertical) {
+                             lvRect r = vertMarkRect(mark);
+-                            if (getenv("CRE_LOG_VERT_MARKS")) {
++                            if (verticalMarksDebugEnabled()) {
+                                 fprintf(stderr,
+                                     "VERT_MARK line=(x:%d y:%d w:%d h:%d) "
+                                     "mark=(%d,%d,%d,%d) screen=(%d,%d,%d,%d) "
+@@ -7361,7 +7369,7 @@ void LFormattedText::Draw( LVDrawBuf * buf, int x, int y, ldomMarkedRangeList *
+                             vert_skip_draw = placement.skip_draw;
+                             word_is_latin_in_vertical = placement.rotated;
+                             word_is_exact_hanging = placement.exact_hanging;
+-                            if (getenv("CRE_LOG_VERT_MARKS") && !vert_skip_draw) {
++                            if (verticalMarksDebugEnabled() && !vert_skip_draw) {
+                                 fprintf(stderr,
+                                     "VERT_GLYPH text=U+%04X line=(x:%d y:%d w:%d h:%d) "
+                                     "word=(x:%d w:%d) screen=(%d,%d) draw_origin=(%d,%d)\n",
+diff --git a/crengine/src/lvtextfm_vert.cpp b/crengine/src/lvtextfm_vert.cpp
+index 8436c33..0d852cf 100644
+--- a/crengine/src/lvtextfm_vert.cpp
++++ b/crengine/src/lvtextfm_vert.cpp
+@@ -28,7 +28,10 @@
+ 
+ bool verticalTextDebugEnabled()
+ {
+-    return getenv("KO_DEBUG_VERT_BG") != NULL;
++    static int enabled = -1;
++    if ( enabled < 0 )
++        enabled = getenv("KO_DEBUG_VERT_BG") != NULL ? 1 : 0;
++    return enabled != 0;
+ }
+ 
+ static bool verticalSpacingDebugEnabled()
+@@ -1921,28 +1924,21 @@ void applyVerticalFrmlineDimensions(LVFormatter * fmt, formatted_line_t * frmlin
+     for ( int i=0; i<frmline->word_count; i++ ) {
+         formatted_word_t * word = &frmline->words[i];
+         int advance = (int)word->width;
+-        if ( word->flags & (LTEXT_WORD_IS_IMAGE | LTEXT_WORD_IS_INLINE_BOX) )
++        if ( word->flags & (LTEXT_WORD_IS_IMAGE | LTEXT_WORD_IS_INLINE_BOX) ) {
+             advance = (int)word->o.height;
++            if ( (word->flags & LTEXT_WORD_IS_IMAGE) && (int)word->width > col_width )
++                col_width = (int)word->width;
++            if ( (int)word->src_text_index < fmt->m_pbuffer->srctextlen ) {
++                src_text_fragment_t * src = &fmt->m_pbuffer->srctext[word->src_text_index];
++                if ( (src->flags & LTEXT_SRC_IS_OBJECT)
++                        && (src->o.objflags & LTEXT_OBJECT_IS_ORTHOGONAL_SPACER)
++                        && (int)word->o.height > col_width )
++                    col_width = word->o.height;
++            }
++        }
+         int end = (int)frmline->x + (int)word->x + advance;
+         if ( end > frmline->inline_end )
+             frmline->inline_end = end;
+-
+-        // Every replaced inline establishes cross-axis space. In particular,
+-        // a decorative image mixed with text may be wider than the strut.
+-        // word->width is its physical screen-X extent; o.height is its
+-        // inline screen-Y advance.
+-        if ( (word->flags & LTEXT_WORD_IS_IMAGE) && (int)word->width > col_width )
+-            col_width = (int)word->width;
+-
+-        // A width-specified orthogonal inline similarly reserves cross-axis
+-        // space while remaining transparent to inline-axis wrapping.
+-        if ( (int)word->src_text_index >= fmt->m_pbuffer->srctextlen )
+-            continue;
+-        src_text_fragment_t * src = &fmt->m_pbuffer->srctext[word->src_text_index];
+-        if ( (src->flags & LTEXT_SRC_IS_OBJECT)
+-                && (src->o.objflags & LTEXT_OBJECT_IS_ORTHOGONAL_SPACER)
+-                && (int)word->o.height > col_width )
+-            col_width = word->o.height;
+     }
+     if ( frmline->word_count == 1 ) {
+         formatted_word_t * w0 = &frmline->words[0];
+diff --git a/crengine/src/lvtinydom.cpp b/crengine/src/lvtinydom.cpp
+index 7a56884..a011719 100644
+--- a/crengine/src/lvtinydom.cpp
++++ b/crengine/src/lvtinydom.cpp
+@@ -19122,9 +19122,11 @@ bool tinyNodeCollection::updateLoadedStyles( bool enabled )
+                 // Each DocFragment may declare @font-face rules scoped to itself.
+                 // Clear the style→font cache at each boundary so nodes in later
+                 // DocFragments re-resolve against their own DocFragment's font scope
+-                // rather than reusing a resolution from a prior DocFragment.
++                // rather than reusing a resolution from a prior DocFragment, but only
++                // when the document actually has DocFragment-scoped fonts.
+                 if ( buf[j].getNodeId() == el_DocFragment ) {
+-                    _fontMap.clear();
++                    if ( fontMan && fontMan->hasDocFragmentScopedFonts(getFontContextDocIndex()) )
++                        _fontMap.clear();
+                     currentDocFragmentIdx = (int)buf[j].getNodeIndex();
+                 }
+                 lUInt16 style = getNodeStyleIndex( buf[j]._handle._dataIndex );
+@@ -21469,8 +21471,9 @@ void ldomNode::initNodeStyle(int docFragmentIdx)
+             // by style index only, not by DocFragment, so clear it at each
+             // DocFragment boundary: a style shared with a prior DocFragment must
+             // not reuse a font that was resolved under that other DocFragment's
+-            // @font-face scope.
+-            getDocument()->_fontMap.clear();
++            // @font-face scope, but only when the document actually has DocFragment-scoped fonts.
++            if ( fontMan && fontMan->hasDocFragmentScopedFonts(getDocument()->getFontContextDocIndex()) )
++                getDocument()->_fontMap.clear();
+         }
+         if ( isRoot() || getParentNode()->isRoot() )
+         {
+@@ -22966,23 +22969,39 @@ int ldomNode::renderFinalBlock(  LFormattedTextRef & frmtext, RenderRectAccessor
+     // The reduction is applied to every column of the paragraph.  That is needed
+     // for a decorated parent block: each column must leave room for its physical
+     // top and bottom edges instead of allowing text to overwrite the bottom inset.
++    bool vert_allow_light_formatting = true;
+     {
+         css_writing_mode_t wm = (css_writing_mode_t)effective_writing_mode;
+         if (css_wm_is_vertical(wm)) {
+             CSSLogical L(wm);
++            css_style_ref_t self_style = getStyle();
+             int bvo = fmt->getX();
+             int bie = 0;
+-            bvo += measureBorder(this, L.brdIS());   // inline-start border (border-top)
+-            bvo += lengthToPx(this, getStyle()->padding[L.padIS()], fmt->getWidth());  // padding-top
+-            bie += measureBorder(this, L.brdIE());   // inline-end border (border-bottom)
+-            bie += lengthToPx(this, getStyle()->padding[L.padIE()], fmt->getWidth());  // padding-bottom
++            int self_brd_is = measureBorder(this, L.brdIS());   // inline-start border (border-top)
++            int self_brd_ie = measureBorder(this, L.brdIE());   // inline-end border (border-bottom)
++            bvo += self_brd_is;
++            if (self_style->padding[L.padIS()].value != 0)
++                bvo += lengthToPx(this, self_style->padding[L.padIS()], fmt->getWidth());  // padding-top
++            bie += self_brd_ie;
++            if (self_style->padding[L.padIE()].value != 0)
++                bie += lengthToPx(this, self_style->padding[L.padIE()], fmt->getWidth());  // padding-bottom
++            lUInt32 self_bg = self_style->background_color.type == css_val_color
++                ? self_style->background_color.value : self_style->color.value;
++            bool has_box_decorations = (self_brd_is > 0 || self_brd_ie > 0
++                || measureBorder(this, L.brdBS()) > 0 || measureBorder(this, L.brdBE()) > 0
++                || !IS_COLOR_FULLY_TRANSPARENT(self_bg)
++                || !self_style->background_image.empty());
++            bool in_inline_or_table_box = (self_style->display == css_d_table_cell
++                || self_style->display == css_d_table_caption);
+             for (ldomNode* cur = getParentNode(); cur != NULL && cur->isElement(); cur = cur->getParentNode()) {
++                lUInt16 cur_id = cur->getNodeId();
+                 // Stop accumulating bvo when we hit the ruby inline box.
+                 // Its getX() encodes the Y position of the ruby group in the outer
+                 // column; including it would reduce page_h for ruby table cells,
+                 // causing base characters to wrap into separate columns and appear
+                 // side-by-side (horizontal) instead of stacked vertically.
+-                if (cur->getNodeId() == el_inlineBox) {
++                if (cur_id == el_inlineBox) {
++                    in_inline_or_table_box = true;
+                     ldomNode * p = cur->getParentNode();
+                     if (p) {
+                         css_style_ref_t ps = p->getStyle();
+@@ -22990,30 +23009,36 @@ int ldomNode::renderFinalBlock(  LFormattedTextRef & frmtext, RenderRectAccessor
+                             break;
+                     }
+                 }
++                int cur_rm = cur->getRendMethod();
++                if (cur_rm >= erm_table) {
++                    in_inline_or_table_box = true;
++                }
+                 RenderRectAccessor cur_fmt(cur);
+                 css_style_ref_t cur_style = cur->getStyle();
+                 css_writing_mode_t cur_writing_mode = cur_style->writing_mode;
+-                if (cur_writing_mode == css_wm_inherit) {
+-                    for (ldomNode *p = cur->getParentNode(); p && p->isElement(); p = p->getParentNode()) {
+-                        css_style_ref_t parent_style = p->getStyle();
+-                        if (!parent_style.isNull() && parent_style->writing_mode != css_wm_inherit) {
+-                            cur_writing_mode = parent_style->writing_mode;
+-                            break;
+-                        }
+-                    }
+-                }
+-                // Synthetic nodes may not have an explicitly styled ancestor;
+-                // in that case they share the final block's resolved mode.
+                 if (cur_writing_mode == css_wm_inherit)
+-                    cur_writing_mode = (css_writing_mode_t)effective_writing_mode;
++                    cur_writing_mode = wm;
+                 CSSLogical curL(cur_writing_mode);
+                 bvo += cur_fmt.getX();
+-                bie += measureBorder(cur, curL.brdIE());
+-                bie += lengthToPx(cur, cur_style->padding[curL.padIE()], cur_fmt.getWidth());
++                int cur_brd_ie = measureBorder(cur, curL.brdIE());
++                bie += cur_brd_ie;
++                if (cur_style->padding[curL.padIE()].value != 0)
++                    bie += lengthToPx(cur, cur_style->padding[curL.padIE()], cur_fmt.getWidth());
++                if (!has_box_decorations && cur_id != el_body && cur_id != el_html && cur_id != el_DocFragment) {
++                    lUInt32 cur_bg = cur_style->background_color.type == css_val_color
++                        ? cur_style->background_color.value : cur_style->color.value;
++                    if (cur_brd_ie > 0 || measureBorder(cur, curL.brdIS()) > 0
++                            || measureBorder(cur, curL.brdBS()) > 0 || measureBorder(cur, curL.brdBE()) > 0
++                            || !IS_COLOR_FULLY_TRANSPARENT(cur_bg)
++                            || !cur_style->background_image.empty()) {
++                        has_box_decorations = true;
++                    }
++                }
+             }
+             int inline_insets = bvo + bie;
+             if (inline_insets > 0 && inline_insets < page_h)
+                 page_h -= inline_insets;
++            vert_allow_light_formatting = !has_box_decorations && !in_inline_or_table_box;
+         }
+     }
+     // Save or restore outer floats footprint (it is only provided
+@@ -23029,12 +23054,11 @@ int ldomNode::renderFinalBlock(  LFormattedTextRef & frmtext, RenderRectAccessor
+         float_footprint->restore( this, (lUInt16)width );
+     }
+     // Resolve writing_mode before deciding whether light formatting is safe.
+-    // In vertical text, alignLineHorizontalVerticalPostPass() establishes JFM
+-    // positions and the used inline extent. Skipping it during initial layout
+-    // and running it only before paint gives layout and paint two different
+-    // geometries, so vertical final blocks must be fully formatted once and
+-    // kept reusable.
+-    if ( !getDocument()->isRendered() && !css_wm_is_vertical(effective_writing_mode) ) {
++    // For undecorated vertical blocks outside inline/table containers, column
++    // widths and column counts are identical under light formatting; only blocks
++    // with borders/backgrounds or inside inline/table boxes need exact inline_end
++    // during initial layout.
++    if ( !getDocument()->isRendered() && (!css_wm_is_vertical(effective_writing_mode) || vert_allow_light_formatting) ) {
+         // Full rendering in progress: avoid some uneeded work that
+         // is only needed when we'll be drawing the formatted text
+         // (like alignLign()): this will mark it as not reusable, and
+diff --git a/crengine/tests/stylecachetest.cpp b/crengine/tests/stylecachetest.cpp
+new file mode 100644
+index 0000000..131cfd6
+--- /dev/null
++++ b/crengine/tests/stylecachetest.cpp
+@@ -0,0 +1,57 @@
++#include "lvstyles.h"
++#include <cstdio>
++
++int main()
++{
++    const struct {
++        css_writing_mode_t writing_mode;
++        css_text_orientation_t text_orientation;
++        css_text_combine_upright_t text_combine_upright;
++        css_text_emphasis_style_t text_emphasis_style;
++    } cases[] = {
++        {css_wm_inherit, css_to_mixed, css_tcu_none, css_tes_inherit},
++        {css_wm_horizontal_tb, css_to_mixed, css_tcu_none, css_tes_none},
++        {css_wm_vertical_rl, css_to_mixed, css_tcu_none, css_tes_inherit},
++        {css_wm_vertical_lr, css_to_upright, css_tcu_all, css_tes_filled_sesame},
++        {css_wm_vertical_rl, css_to_sideways, css_tcu_digits_2, css_tes_open_tri},
++        {css_wm_vertical_lr, css_to_upright, css_tcu_digits_4, css_tes_none},
++    };
++    bool failed = false;
++    for (const auto &test : cases) {
++        css_style_rec_t style;
++        style.writing_mode = test.writing_mode;
++        style.text_orientation = test.text_orientation;
++        style.text_combine_upright = test.text_combine_upright;
++        style.text_emphasis_style = test.text_emphasis_style;
++        SerialBuf encoded(512);
++        if (!style.serialize(encoded)) {
++            std::fprintf(stderr, "Could not serialize test style\n");
++            return 1;
++        }
++        SerialBuf decoded(encoded.buf(), encoded.pos());
++        css_style_rec_t restored;
++        if (!restored.deserialize(decoded) || !(style == restored)
++                || decoded.pos() != encoded.pos()) {
++            std::fprintf(stderr,
++                    "Style cache round-trip failed: writing-mode=%d orientation=%d combine=%d emphasis=%d\n",
++                    test.writing_mode, test.text_orientation,
++                    test.text_combine_upright, test.text_emphasis_style);
++            failed = true;
++        }
++    }
++
++    css_style_rec_t style;
++    SerialBuf encoded(512);
++    if (!style.serialize(encoded)) {
++        std::fprintf(stderr, "Could not serialize corruption test style\n");
++        return 1;
++    }
++    encoded.buf()[encoded.pos() - 1] ^= 1;
++    SerialBuf decoded(encoded.buf(), encoded.pos());
++    css_style_rec_t restored;
++    if (restored.deserialize(decoded)) {
++        std::fprintf(stderr, "Corrupted cached style hash was accepted\n");
++        return 1;
++    }
++    return failed ? 1 : 0;
++}
