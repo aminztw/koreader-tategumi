@@ -312,6 +312,15 @@ index 8e49840..664d43c 100644
      // If a face with the given file_path+documentId is already registered,
      // add docFragmentIdx to its allowed set and return true.  Avoids reloading
      // the font file from disk/memory for repeat registrations from new DocFragments.
+@@ -7441,7 +7519,7 @@ public:
+             // So let's clear glyphs caches too.
+             // Also reset the per-instance cached fallback font reference so every
+             // live instance re-resolves it against the new fallback on next use.
+-            _instance_cache.forEachFont([](LVFontRef& f) { f->setFallbackFont(LVFontRef()); });
++            _instance_cache.forEachFont([](LVFontRef& f) { f->setFallbackFont(LVFontRef()); f->setNextFallbackFont(LVFontRef()); });
+             gc();
+             clearGlyphCache();
+         }
 @@ -8435,6 +8513,12 @@ public:
          return true;
      }
@@ -333,10 +342,10 @@ index 7034068..d1fd1ab 100644
  // LFNT_HINT_VERTICAL_MARK *before* consulting JLReqVertClass.
  JLReqVertClass getJLReqVertClass(lChar32 c)
  {
-+    // Fast path for CJK Unified Ideographs (Ext A + main block + Compatibility):
-+    // 90%+ of CJK characters fall in [0x3400, 0xFDFF], none of which are special
-+    // punctuation/brackets.
-+    if (c >= 0x3400 && c <= 0xFDFF)
++    // Fast path for CJK Unified Ideographs (main block + Ext A), the bulk of CJK
++    // text. Stay within isUniformVerticalIdeograph() ranges: PUA gaiji, Yi and
++    // presentation forms (e.g. U+FB01) must still classify as JLREQ_VERT_OTHER.
++    if ((c >= 0x4E00 && c <= 0x9FFF) || (c >= 0x3400 && c <= 0x4DBF))
 +        return JLREQ_VERT_CJK_BODY;
 +
      // --- Opening brackets (class [1] in jfm-ujisv.lua) ---

@@ -137,17 +137,37 @@ function ReaderTypeset:onToggleVerticalReading(toggle)
     self.vertical_reading = toggle
     self.ui.doc_settings:saveSetting("vertical_reading", toggle or nil)
 
-    local after_open_callback
-    if toggle then
-        after_open_callback = function()
-            UIManager:show(InfoMessage:new{
-                text = _("Vertical reading may not work well with books styled specifically for horizontal reading."),
-                timeout = 5,
-                icon = "notice-warning",
-            })
+    self:onApplyStyleSheet()
+
+    local view = self.ui.view
+    local is_vertical = toggle or (self.ui.document.hasVerticalContent
+        and self.ui.document:hasVerticalContent())
+    if self.ui.rolling and is_vertical then
+        if not self.ui.doc_settings:isTrue("page_direction_user_override") then
+            view.inverse_reading_order = not BD.mirroredUILayout()
+            view.inverse_reading_order_forced = true
         end
+        if view.view_mode ~= "page" then
+            self.ui:handleEvent(Event:new("SetViewMode", "page"))
+        end
+    elseif self.ui.rolling and view.inverse_reading_order_forced then
+        if self.ui.doc_settings:has("inverse_reading_order") then
+            view.inverse_reading_order = self.ui.doc_settings:isTrue("inverse_reading_order")
+        else
+            view.inverse_reading_order = G_reader_settings:isTrue("inverse_reading_order")
+        end
+        view.inverse_reading_order_forced = false
     end
-    self.ui:reloadDocument(nil, nil, after_open_callback)
+    view:syncProgressBarDirection()
+    view:refreshPageTurnInput()
+
+    if toggle then
+        UIManager:show(InfoMessage:new{
+            text = _("Vertical reading may not work well with books styled specifically for horizontal reading."),
+            timeout = 5,
+            icon = "notice-warning",
+        })
+    end
     return true
 end
 

@@ -48,35 +48,76 @@ describe("ReaderTypeset vertical reading", function()
         assert.is_truthy(menu_items.document_settings.sub_item_table[1].help_text:find("horizontal reading", 1, true))
     end)
 
-    it("warns after enabling vertical reading, but not when disabling", function()
+    it("applies vertical CSS in place and warns only when enabling", function()
         local UIManager = require("ui/uimanager")
         local original_show = UIManager.show
         local shown_message
-        local after_open_callback
+        local applied_stylesheet
+        local update_event
+        local set_view_mode_event
+        local saved_setting
         local typeset = setmetatable({
             vertical_reading = false,
             ui = {
-                doc_settings = { saveSetting = function() end },
-                reloadDocument = function(_, _, _, callback)
-                    after_open_callback = callback
+                doc_settings = {
+                    saveSetting = function(_, key, value)
+                        saved_setting = { key, value }
+                    end,
+                    isTrue = function() return false end,
+                    has = function() return false end,
+                },
+                document = {
+                    setStyleSheet = function(_, css, tweaks_css)
+                        applied_stylesheet = { css, tweaks_css }
+                    end,
+                    hasVerticalContent = function() return false end,
+                },
+                view = {
+                    view_mode = "scroll",
+                    syncProgressBarDirection = function() end,
+                    refreshPageTurnInput = function() end,
+                },
+                handleEvent = function(_, event)
+                    if event.handler == "onUpdatePos" then
+                        update_event = event
+                    elseif event.handler == "onSetViewMode" then
+                        set_view_mode_event = event
+                    end
                 end,
+                rolling = {},
+                reloadDocument = function()
+                    error("vertical toggle should not reload the document")
+                end,
+                styletweak = {
+                    getCssText = function() return "p { text-align: justify; }" end,
+                },
             },
         }, { __index = ReaderTypeset })
 
-        UIManager.show = function(_, message)
-            shown_message = message
-        end
+        UIManager.show = function(_, message) shown_message = message end
         local ok, err = pcall(function()
             assert.is_true(typeset:onToggleVerticalReading(true))
-            assert.is_function(after_open_callback)
-            after_open_callback()
+            assert.are.same({ "vertical_reading", true }, saved_setting)
+            assert.are.equal(typeset.css, applied_stylesheet[1])
+            assert.is_truthy(applied_stylesheet[2]:find("writing%-mode: vertical%-rl !important;"))
+            assert.are.equal("onUpdatePos", update_event.handler)
+            assert.are.equal("onSetViewMode", set_view_mode_event.handler)
+            assert.are.equal("page", set_view_mode_event.args[1])
+            assert.is_true(typeset.ui.view.inverse_reading_order_forced)
+            assert.are.equal(not require("ui/bidi").mirroredUILayout(),
+                typeset.ui.view.inverse_reading_order)
             assert.is_truthy(shown_message.text:find("horizontal reading", 1, true))
             assert.are.equal(5, shown_message.timeout)
             assert.are.equal("notice-warning", shown_message.icon)
 
-            after_open_callback = nil
-            typeset:onToggleVerticalReading(false)
-            assert.is_nil(after_open_callback)
+            shown_message = nil
+            assert.is_true(typeset:onToggleVerticalReading(false))
+            assert.are.same({ "vertical_reading", nil }, saved_setting)
+            assert.is_nil(applied_stylesheet[2]:find("writing%-mode: vertical%-rl !important;"))
+            assert.is_false(typeset.ui.view.inverse_reading_order_forced)
+            assert.are.equal(G_reader_settings:isTrue("inverse_reading_order"),
+                typeset.ui.view.inverse_reading_order)
+            assert.is_nil(shown_message)
         end)
         UIManager.show = original_show
         assert.is_true(ok, err)
