@@ -11,6 +11,7 @@ local lfs = require("libs/libkoreader-lfs")
 local logger = require("logger")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
+local ffiUtil = require("ffi/util")
 local util = require("util")
 local _ = require("gettext")
 
@@ -25,15 +26,6 @@ local USB_ROLE_HOST   = "host"
 local KEYBOARD_LAYOUTS_DIR = "plugins/externalkeyboard.koplugin/keyboard_layouts"
 -- NOTE: See https://www.mobileread.com/forums/showthread.php?p=4135724 if your keyboard reports itself as an Apple keyboard.
 --       (We currently don't do this here, but that may change in the future).
-
--- Blacklist for virtual input nodes that *falsely* advertise KEYBOARD capabilities.
--- For example, `kindle-input-pt` is a software-defined pass-through device created by
--- Amazon's input_manager to route events from Bluetooth remotes (like the Kindle Click).
--- Because it broadcasts a catch-all list of capabilities (including KEYBOARD and DPAD),
--- we must explicitly ignore it so this plugin does not erroneously hijack input handling.
-local BLACKLISTED_DEVICES = {
-    ["kindle-input-pt"] = true,
-}
 
 local function yes() return true end
 local function no() return false end  -- luacheck: ignore
@@ -245,6 +237,35 @@ ExternalKeyboard._broadcastDisconnected = UIManager:debounce(0.5, false, functio
     UIManager:broadcastEvent(Event:new("PhysicalKeyboardDisconnected"))
 end)
 
+-- Filter out built-in SoC keypad/button controllers (such as MediaTek's mtk-kpd
+-- on MTK Kindles) that declare full keyboard keybits (bits 1..31) in evdev and
+-- would otherwise be falsely detected by fbink_input_scan(INPUT_KEYBOARD) as an
+-- external physical keyboard, suppressing the on-screen VirtualKeyboard.
+local function isBuiltInKeyboard(event_path, name)
+    if name == "mtk-kpd" or name:find("^mtk%-") or name == "gpio-keys"
+            or name == "whitney-button" or name == "sunxi-keyboard" then
+        return true
+    end
+    -- Amazon's input_manager (firmware 5.20+) creates `kindle-input-pt`, a virtual pass-through node
+    -- that advertises every capability (KEYBOARD and DPAD included) to relay page-turner remotes.
+    -- It lives under /sys/devices/virtual/ just like a UHID keyboard, so only its name gives it away.
+    if Device:isKindle() and name == "kindle-input-pt" then
+        return true
+    end
+    if Device:isKindle() and type(event_path) == "string" then
+        local event_name = event_path:match("event%d+$")
+        if event_name then
+            local sysfs_path = ffiUtil.realpath("/sys/class/input/" .. event_name)
+            -- On Kindle, external keyboards come from UHID (/sys/devices/virtual/)
+            -- or USB host (/usb); non-USB /sys/devices/platform/ nodes are built-in SoC devices.
+            if sysfs_path and sysfs_path:find("^/sys/devices/platform/") and not sysfs_path:find("/usb") then
+                return true
+            end
+        end
+    end
+    return false
+end
+
 -- Implement FindKeyboard:find & check via FBInkInput
 local function findKeyboards()
     local keyboards = {}
@@ -256,16 +277,17 @@ local function findKeyboards()
         for i = 0, tonumber(dev_count[0]) - 1 do
             local dev = devices[i]
             if dev.matched then
-                local dev_name = ffi.string(dev.name)
-                --- @fixme Might want to revise this later, with a more robust solution.
-                if Device:isKindle() and Device:isMTK() and BLACKLISTED_DEVICES[dev_name] then
-                    -- This is a kindle only problem. Technically only MTK devices get the newer
-                    -- problematic firmware even though not all of them do (e.g., PW5).
-                    logger.dbg("ExternalKeyboard: Ignoring blacklisted node in findKeyboards:", dev_name)
+                local event_path = ffi.string(dev.path)
+                local name = ffi.string(dev.name)
+                if isBuiltInKeyboard(event_path, name) then
+                    logger.dbg("ExternalKeyboard: ignoring built-in input device", name, "@", event_path)
+                    if dev.fd >= 0 then
+                        C.close(dev.fd)
+                    end
                 else
                     -- Check if it provides a DPad, too.
                     local has_dpad = bit.band(dev.type, C.INPUT_DPAD) ~= 0
-                    table.insert(keyboards, { event_fd = tonumber(dev.fd), event_path = ffi.string(dev.path), name = dev_name, has_dpad = has_dpad })
+                    table.insert(keyboards, { event_fd = tonumber(dev.fd), event_path = event_path, name = name, has_dpad = has_dpad })
                 end
             end
         end
@@ -282,17 +304,18 @@ local function checkKeyboard(path)
     local dev = FBInkInput.fbink_input_check(path, C.INPUT_KEYBOARD, 0, 0)
     if dev ~= nil then
         if dev.matched then
-            local dev_name = ffi.string(dev.name)
-            --- @fixme Might want to revise this later, with a more robust solution.
-            if Device:isKindle() and Device:isMTK() and BLACKLISTED_DEVICES[dev_name] then
-                -- This is a kindle only problem. Technically only MTK devices get the newer
-                -- problematic firmware even though not all of them do (e.g., PW5).
-                logger.dbg("ExternalKeyboard: Ignoring blacklisted node in checkKeyboard:", dev_name)
+            local event_path = ffi.string(dev.path)
+            local name = ffi.string(dev.name)
+            if isBuiltInKeyboard(event_path, name) then
+                logger.dbg("ExternalKeyboard: ignoring built-in input device", name, "@", event_path)
+                if dev.fd >= 0 then
+                    C.close(dev.fd)
+                end
             else
                 keyboard = {
                     event_fd = tonumber(dev.fd),
-                    event_path = ffi.string(dev.path),
-                    name = dev_name,
+                    event_path = event_path,
+                    name = name,
                     has_dpad = bit.band(dev.type, C.INPUT_DPAD) ~= 0
                 }
             end
