@@ -29,7 +29,7 @@ local CreDocument = Document:extend{
     _smooth_scaling = false,
     _nightmode_images = true,
 
-    default_font = "Noto Serif",
+    default_font = "Noto Sans CJK SC",
     monospace_font = "Droid Sans Mono",
     header_font = "Noto Sans",
 
@@ -84,7 +84,7 @@ function CreDocument.cacheInit()
     end
     -- crengine saves caches on disk for faster re-openings, and cleans
     -- the less recently used ones when this limit is reached
-    local default_cre_disk_cache_max_size = 64 -- in MB units
+    local default_cre_disk_cache_max_size = 256 -- in MB units
     -- crengine various in-memory caches max-sizes are rather small
     -- (2.5 / 4.5 / 4.5 / 1 MB), and we can avoid some bugs if we
     -- increase them. Let's multiply them by 40 (each cache would
