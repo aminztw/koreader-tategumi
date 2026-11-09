@@ -130,7 +130,7 @@ jobs:
 
       - name: Restore build directory
         id: build-restore
-        uses: actions/cache/restore@v6.1.0
+        uses: actions/cache/restore@v6
         with:
           # NOTE:
           # - we need to use `build/*` to work around https://github.com/actions/toolkit#713
@@ -147,7 +147,7 @@ jobs:
 
       - name: Lookup or restore build cache
         id: ccache-restore
-        uses: actions/cache/restore@v6.1.0
+        uses: actions/cache/restore@v6
         with:
           path: ${{ env.CCACHE_DIR }}
           key: ${{ matrix.cache_key_ccache_exact }}
@@ -172,7 +172,7 @@ jobs:
 
       - name: Lookup or restore download cache
         id: download-restore
-        uses: actions/cache/restore@v6.1.0
+        uses: actions/cache/restore@v6
         with:
           path: &DOWNLOAD_PATHS |
             base/thirdparty/*/build
@@ -186,7 +186,7 @@ jobs:
         run: make download-all buildstats
 
       - name: Save download cache
-        uses: actions/cache/save@v6.1.0
+        uses: actions/cache/save@v6
         if: steps.build-restore.outputs.cache-hit != 'true' && steps.download-restore.outputs.cache-hit != 'true'
         with:
           path: *DOWNLOAD_PATHS
@@ -217,7 +217,7 @@ jobs:
           ccache --show-stats --verbose
 
       - name: Save build cache
-        uses: actions/cache/save@v6.1.0
+        uses: actions/cache/save@v6
         if: >
           contains('failure success', steps.build.conclusion) && !cancelled()
           && steps.build-restore.outputs.cache-hit != 'true'
@@ -251,7 +251,7 @@ jobs:
       # }}}
 
       - name: Save build directory
-        uses: actions/cache/save@v6.1.0
+        uses: actions/cache/save@v6
         if: steps.build-restore.outputs.cache-hit != 'true'
         with:
           path: *BUILD_PATHS
