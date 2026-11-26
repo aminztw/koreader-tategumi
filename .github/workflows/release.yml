@@ -248,6 +248,10 @@ jobs:
     env:
       BASH_ENV: /home/ko/.bashrc
       TARGET: remarkable
+      # Use the kernel.org mirror for FBInk's pinned i2c-tools submodule.
+      GIT_CONFIG_COUNT: 1
+      GIT_CONFIG_KEY_0: url.https://kernel.googlesource.com/pub/scm/utils/i2c-tools/i2c-tools.insteadOf
+      GIT_CONFIG_VALUE_0: https://git.kernel.org/pub/scm/utils/i2c-tools/i2c-tools.git
     steps:
       - uses: actions/checkout@v4
         with:
@@ -276,6 +280,10 @@ jobs:
     env:
       BASH_ENV: /home/ko/.bashrc
       TARGET: remarkable-aarch64
+      # Use the kernel.org mirror for FBInk's pinned i2c-tools submodule.
+      GIT_CONFIG_COUNT: 1
+      GIT_CONFIG_KEY_0: url.https://kernel.googlesource.com/pub/scm/utils/i2c-tools/i2c-tools.insteadOf
+      GIT_CONFIG_VALUE_0: https://git.kernel.org/pub/scm/utils/i2c-tools/i2c-tools.git
     steps:
       - uses: actions/checkout@v4
         with:
@@ -296,8 +304,29 @@ jobs:
           if-no-files-found: error
           path: koreader-remarkable-aarch64-latest-stable.zip
 
+  android-signing-config:
+    name: Check Android signing configuration
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require release signing secrets
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          missing=0
+          for name in ANDROID_KEYSTORE_BASE64 ANDROID_STORE_PASSWORD ANDROID_KEY_PASSWORD ANDROID_KEY_ALIAS; do
+            if [[ -z "${!name}" ]]; then
+              echo "::error::Missing GitHub Actions secret: $name"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
   android-arm:
     name: Android (ARM)
+    needs: android-signing-config
     runs-on: ubuntu-latest
     container:
       image: koreader/koandroid:latest
@@ -337,6 +366,7 @@ jobs:
 
   android-arm64:
     name: Android (ARM64)
+    needs: android-signing-config
     runs-on: ubuntu-latest
     container:
       image: koreader/koandroid:latest
