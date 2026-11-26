@@ -40,6 +40,8 @@ describe("Vertical column bottom", function()
 
     setup(function()
         require("commonrequire")
+        -- Layout expectations depend on the font metrics and glyph coverage.
+        G_reader_settings:saveSetting("cre_font", "Noto Serif")
         disable_plugins()
         require("document/canvascontext"):init(require("device"))
         DocumentRegistry = require("document/documentregistry")

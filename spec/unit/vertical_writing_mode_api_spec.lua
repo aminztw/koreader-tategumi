@@ -3,6 +3,8 @@ describe("Vertical text writing-mode API #vertical_writing_mode_api", function()
 
     setup(function()
         require("commonrequire")
+        -- Layout expectations depend on the font metrics and glyph coverage.
+        G_reader_settings:saveSetting("cre_font", "Noto Serif")
         disable_plugins()
         require("document/canvascontext"):init(require("device"))
         Registry = require("document/documentregistry")

@@ -9,6 +9,8 @@ describe("Readerfooter module", function()
 
     setup(function()
         require("commonrequire")
+        -- Layout expectations depend on the font metrics and glyph coverage.
+        G_reader_settings:saveSetting("cre_font", "Noto Serif")
         disable_plugins()
         local Device = require("device")
         -- Override powerd for running tests on devices with batteries.

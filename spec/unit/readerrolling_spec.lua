@@ -4,6 +4,8 @@ describe("Readerrolling module", function()
 
     setup(function()
         require("commonrequire")
+        -- Layout expectations depend on the font metrics and glyph coverage.
+        G_reader_settings:saveSetting("cre_font", "Noto Serif")
         disable_plugins()
         UIManager = require("ui/uimanager")
         stub(UIManager, "getNthTopWidget")
