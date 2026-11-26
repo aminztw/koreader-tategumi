@@ -2685,6 +2685,34 @@ function ReaderStatistics:onAnnotationsModified(annotations)
     end
 end
 
+function ReaderStatistics:updateBookAnnotationsNumber(doc_props, md5, highlights_nb, notes_nb) -- for Bookmark browser
+    if doc_props.title and doc_props.authors and md5 then
+        local conn = SQ3.open(db_location)
+        local sql_stmt = [[
+            SELECT id
+            FROM   book
+            WHERE  title = ?
+              AND  authors = ?
+              AND  md5 = ?;
+        ]]
+        local stmt = conn:prepare(sql_stmt)
+        local res = stmt:reset():bind(doc_props.title, doc_props.authors, md5):step()
+        local id_book = res[1]
+        if id_book then
+            sql_stmt = [[
+                UPDATE book
+                SET    highlights = ?,
+                       notes = ?
+                WHERE  id = ?;
+            ]]
+            stmt = conn:prepare(sql_stmt)
+            stmt:reset():bind(highlights_nb, notes_nb, id_book):step()
+        end
+        stmt:close()
+        conn:close()
+    end
+end
+
 -- Triggered by auto_save_settings_interval_minutes
 function ReaderStatistics:onSaveSettings()
     self:insertDB()
@@ -3097,6 +3125,14 @@ end
 -- the user is reading alone. Same flag as KOSync:updateProgress.
 function ReaderStatistics:onSyncBookStats(interactive)
     if self:canSync() then
+        if not ReaderStatistics.walCheckpoint() then
+            if interactive then
+                UIManager:show(InfoMessage:new{
+                    text = _("Statistics database is busy"),
+                })
+            end
+            return true
+        end
         local caller_pre_callback
         if interactive then
             caller_pre_callback = function()
@@ -3108,6 +3144,16 @@ function ReaderStatistics:onSyncBookStats(interactive)
         end
         self.ui.cloudstorage:sync(self.settings.sync_server, db_location, self.onSync, not interactive, caller_pre_callback)
     end
+    return true
+end
+
+function ReaderStatistics.walCheckpoint()
+    if not Device:canUseWAL() then return true end
+    local conn = SQ3.open(db_location)
+    local res = conn:exec("PRAGMA wal_checkpoint(TRUNCATE)")
+    conn:close()
+    local busy = tonumber(res and res[1] and res[1][1])
+    return busy == 0
 end
 
 function ReaderStatistics.onSync(local_path, cached_path, income_path)

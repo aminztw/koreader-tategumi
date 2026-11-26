@@ -350,7 +350,7 @@ function ReaderHighlight:setupTouchZones()
             screen_zone = {
                 ratio_x = 0, ratio_y = 0, ratio_w = 1, ratio_h = 1,
             },
-            handler = function() return self:onHoldRelease() end
+            handler = function(ges) return self:onHoldRelease(nil, ges) end
         },
         {
             id = "readerhighlight_hold_pan",
@@ -841,6 +841,7 @@ If you wish your highlights to be saved in the document, just move it to a writa
             end
         end,
         sub_item_table = prompt_sub_item_table,
+        separator = not self.is_touch_device,
     })
     if self.is_touch_device then
         -- highlight very-long-press interval
@@ -873,27 +874,27 @@ If you wish your highlights to be saved in the document, just move it to a writa
                 })
             end,
         })
-    end
 
-    table.insert(menu_items.long_press.sub_item_table, {
-        text = _("Auto-scroll when selection reaches a corner"),
-        help_text = _([[
-Auto-scroll to show part of the previous page when your text selection reaches the top left corner, or of the next page when it reaches the bottom right corner.
-Except when in two columns mode, where this is limited to showing only the previous or next column.]]),
-        separator = true,
-        checked_func = function()
-            if self.ui.paging then return false end
-            return not self.view.highlight.disabled and G_reader_settings:nilOrTrue("highlight_corner_scroll")
-        end,
-        enabled_func = function()
-            if self.ui.paging then return false end
-            return not self.view.highlight.disabled
-        end,
-        callback = function()
-            G_reader_settings:flipNilOrTrue("highlight_corner_scroll")
-            self.allow_corner_scroll = G_reader_settings:nilOrTrue("highlight_corner_scroll")
-        end,
-    })
+        table.insert(menu_items.long_press.sub_item_table, {
+            text = _("Auto-scroll when selection reaches a corner"),
+            help_text = _([[
+        Auto-scroll to show part of the previous page when your text selection reaches the top left corner, or of the next page when it reaches the bottom right corner.
+        Except when in two columns mode, where this is limited to showing only the previous or next column.]]),
+            separator = true,
+            checked_func = function()
+                if self.ui.paging then return false end
+                return not self.view.highlight.disabled and G_reader_settings:nilOrTrue("highlight_corner_scroll")
+            end,
+            enabled_func = function()
+                if self.ui.paging then return false end
+                return not self.view.highlight.disabled
+            end,
+            callback = function()
+                G_reader_settings:flipNilOrTrue("highlight_corner_scroll")
+                self.allow_corner_scroll = G_reader_settings:nilOrTrue("highlight_corner_scroll")
+            end,
+        })
+    end
 
     -- main menu Search
     menu_items.translation_settings = Translator:genSettingsMenu()
@@ -956,6 +957,7 @@ function ReaderHighlight:clear(clear_id)
         end
     end
     self.clear_id = nil -- invalidate id
+    self._hold_from_keyselection = nil
     if not self.ui.document then
         -- might happen if scheduled and run after document is closed
         return
@@ -1012,7 +1014,7 @@ end
 
 function ReaderHighlight:onTap(_, ges)
     if self.hold_pos then -- accidental tap while long-pressing
-        return self:onHoldRelease()
+        return self:onHoldRelease(nil, ges)
     end
     if ges and #self.view.highlight.visible_boxes > 0 then
         local pos = self.view:screenToPageTransform(ges.pos)
@@ -1705,6 +1707,15 @@ function ReaderHighlight:onPanelZoom(arg, ges)
 end
 
 function ReaderHighlight:onHold(arg, ges)
+    local is_keyselection = ges and ges.from_keyselection or false
+    if self._hold_from_keyselection ~= nil and self._hold_from_keyselection ~= is_keyselection then
+        -- Ignore mismatched hold events while an active hold session is owned by the other input source.
+        return true
+    end
+    if not is_keyselection and self.ui.keyselection:isActive() then
+        self.ui.keyselection:stopHighlightIndicator()
+    end
+
     if self.ui.paging and self.panel_zoom_enabled then
         local res = self:onPanelZoom(arg, ges)
         if res or not self.panel_zoom_fallback_to_text_selection then
@@ -1713,10 +1724,12 @@ function ReaderHighlight:onHold(arg, ges)
     end
 
     self:clear() -- clear previous highlight (delayed clear may not have done it yet)
+    self._hold_from_keyselection = is_keyselection
     self.hold_pos = self.view:screenToPageTransform(ges.pos)
     logger.dbg("hold position in page", self.hold_pos)
     if not self.hold_pos then
         logger.dbg("not inside page area")
+        self._hold_from_keyselection = nil
         return false
     end
 
@@ -1731,6 +1744,7 @@ function ReaderHighlight:onHold(arg, ges)
     if image then
         logger.dbg("hold on image")
         self.hold_pos = nil
+        self._hold_from_keyselection = nil
         local ImageViewer = require("ui/widget/imageviewer")
         UIManager:show(ImageViewer:new{
             image = image,
@@ -1744,6 +1758,7 @@ function ReaderHighlight:onHold(arg, ges)
     -- otherwise, we must be holding on text
     if self.view.highlight.disabled then -- Long-press action "Do nothing" checked
         self.hold_pos = nil
+        self._hold_from_keyselection = nil
         return false
     end
     local ok, word = pcall(self.ui.document.getWordFromPosition, self.ui.document, self.hold_pos)
@@ -1830,10 +1845,17 @@ function ReaderHighlight:onHold(arg, ges)
     end
     -- Be sure we don't get stuck in a hold state
     self.hold_pos = nil
+    self._hold_from_keyselection = nil
     return false
 end
 
 function ReaderHighlight:onHoldPan(_, ges)
+    local is_keyselection = ges and ges.from_keyselection or false
+    if self._hold_from_keyselection ~= nil and self._hold_from_keyselection ~= is_keyselection then
+        -- Ignore mismatched hold_pan events so stray gestures cannot alter the active selection.
+        return true
+    end
+
     if self.view.highlight.disabled then return false end -- Long-press action "Do nothing" checked
     if self.hold_pos == nil then
         logger.dbg("no previous hold position")
@@ -1849,10 +1871,11 @@ function ReaderHighlight:onHoldPan(_, ges)
 
     self.holdpan_pos = self.view:screenToPageTransform(ges.pos)
     logger.dbg("holdpan position in page", self.holdpan_pos)
+    local corner_scroll = self.allow_corner_scroll and not is_keyselection
 
     local is_vertical = self.ui.document.isVerticalAtPosition
         and self.ui.document:isVerticalAtPosition(self.holdpan_pos)
-    if self.ui.rolling and self.allow_corner_scroll and self.selected_text_start_xpointer then
+    if self.ui.rolling and corner_scroll and self.selected_text_start_xpointer then
         -- With CreDocuments, allow text selection across multiple pages
         -- by (temporarily) switching to scroll mode when panning to the
         -- top left or bottom right corners.
@@ -2251,7 +2274,14 @@ function ReaderHighlight:onTranslateCurrentPage()
     end
 end
 
-function ReaderHighlight:onHoldRelease()
+function ReaderHighlight:onHoldRelease(_, ges)
+    local is_keyselection = ges and ges.from_keyselection or false
+    if self._hold_from_keyselection ~= nil and self._hold_from_keyselection ~= is_keyselection then
+        -- Ignore mismatched hold_release events so an out-of-band release cannot finalise or clear the active session.
+        return true
+    end
+    self._hold_from_keyselection = nil
+
     if self.clear_id then
         -- Something has requested a clear id and is about to clear
         -- the highlight: it may be a onHoldClose() that handled
@@ -2570,6 +2600,18 @@ function ReaderHighlight:editNote(index, is_new_note, text)
     self.ui.bookmark:setBookmarkNote(index, is_new_note, text, note_updated_callback)
 end
 
+function ReaderHighlight:applyHighlightChanges(item)
+    if self.ui.paging then
+        self:writePdfAnnotation("delete", item)
+        self:writePdfAnnotation("save", item)
+        if item.note then
+            self:writePdfAnnotation("content", item, item.note)
+        end
+    end
+    UIManager:setDirty(self.dialog, "ui")
+    self.ui:handleEvent(Event:new("AnnotationsModified", { item }))
+end
+
 function ReaderHighlight:editHighlightStyle(index)
     local item = self.ui.annotation.annotations[index]
     local style_selector
@@ -2577,16 +2619,8 @@ function ReaderHighlight:editHighlightStyle(index)
         current_value = item.drawer,
         values = highlight_style,
         callback = function(value)
-            self:writePdfAnnotation("delete", item)
             item.drawer = value
-            if self.ui.paging then
-                self:writePdfAnnotation("save", item)
-                if item.note then
-                    self:writePdfAnnotation("content", item, item.note)
-                end
-            end
-            UIManager:setDirty(self.dialog, "ui")
-            self.ui:handleEvent(Event:new("AnnotationsModified", { item }))
+            self:applyHighlightChanges(item)
         end,
         anchor = function()
             return self:_getDialogAnchor(style_selector, index)
@@ -2602,16 +2636,8 @@ function ReaderHighlight:editHighlightColor(index)
         current_value = item.color,
         values = self:getHighlightColorList(),
         callback = function(selected_color_name)
-            self:writePdfAnnotation("delete", item)
             item.color = selected_color_name
-            if self.ui.paging then
-                self:writePdfAnnotation("save", item)
-                if item.note then
-                    self:writePdfAnnotation("content", item, item.note)
-                end
-            end
-            UIManager:setDirty(self.dialog, "ui")
-            self.ui:handleEvent(Event:new("AnnotationsModified", { item }))
+            self:applyHighlightChanges(item)
         end,
         anchor = function()
             return self:_getDialogAnchor(color_selector, index)

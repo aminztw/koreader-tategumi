@@ -160,6 +160,7 @@ local font_exts = {
     ["ttc"] = true,
     ["cff"] = true,
     ["otf"] = true,
+    ["otc"] = true,
     ["woff"] = true,
     ["woff2"] = true,
 }

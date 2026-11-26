@@ -37,6 +37,10 @@ local OPDS = WidgetContainer:extend{
             url = "https://bookserver.archive.org/",
         },
         {
+            title = "Fireside Folio",
+            url = "https://firesidefolio.com/opds/catalog/v2",
+        },
+        {
             title = "textos.info (Spanish)",
             url = "https://www.textos.info/catalogo.atom",
         },
@@ -66,8 +70,11 @@ end
 
 function OPDS:onDispatcherRegisterActions()
     Dispatcher:registerAction("opds_show_catalog",
-        {category="none", event="ShowOPDSCatalog", title=_("OPDS Catalog"), filemanager=true,}
-    )
+        {category="none", event="ShowOPDSCatalog", title=_("OPDS Catalog"), filemanager=true,})
+    Dispatcher:registerAction("opds_sync_all_catalogs",
+        {category="none", event="SyncAllOPDSCatalogs", arg=false, title=_("Sync all OPDS catalogs"), filemanager=true,})
+    Dispatcher:registerAction("opds_sync_all_catalogs",
+        {category="none", event="SyncAllOPDSCatalogs", arg=true, title=_("Force sync all OPDS catalogs"), filemanager=true,})
 end
 
 function OPDS:addToMainMenu(menu_items)
@@ -81,7 +88,7 @@ function OPDS:addToMainMenu(menu_items)
     end
 end
 
-function OPDS:onShowOPDSCatalog()
+function OPDS:setupOPDSBrowser()
     self:loadSettings()
     self.opds_browser = OPDSBrowser:new{
         settings = self.opds_settings,
@@ -114,7 +121,19 @@ function OPDS:onShowOPDSCatalog()
             end
         end,
     }
+end
+
+function OPDS:onShowOPDSCatalog()
+    self:setupOPDSBrowser()
     UIManager:show(self.opds_browser)
+    return true
+end
+
+function OPDS:onSyncAllOPDSCatalogs(is_force)
+    self:setupOPDSBrowser()
+    self.opds_browser.sync_force = is_force
+    self.opds_browser:checkSyncDownload()
+    return true
 end
 
 function OPDS:showFileDownloadedDialog(file)

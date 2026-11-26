@@ -234,4 +234,22 @@ function socketutil.chainSinkWithProgressCallback(sink, progressCallback)
     return ltn12.sink.chain(progress_reporter_filter, sink)
 end
 
+function socketutil.chainSourceWithProgressCallback(source, progressCallback, uploaded_bytes)
+    if source == nil or progressCallback == nil then
+        return source
+    end
+
+    uploaded_bytes = uploaded_bytes or 0
+    local progress_reporter_filter = function(chunk, err)
+        if chunk ~= nil then
+            -- accumulate the uploaded_bytes so we don't need to check the actual file every time
+            uploaded_bytes = uploaded_bytes + chunk:len()
+            progressCallback(uploaded_bytes)
+        end
+        return chunk, err
+    end
+
+    return ltn12.source.chain(source, progress_reporter_filter)
+end
+
 return socketutil
