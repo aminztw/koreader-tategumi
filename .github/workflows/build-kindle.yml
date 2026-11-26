@@ -13,7 +13,7 @@ on:
         default: true
   push:
     tags:
-      - 'v*'
+      # Version tags are published by the full release workflow.
       - 'kindle-*'
       - 'kobo-*'
       - 'release-*'
