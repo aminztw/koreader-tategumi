@@ -26,7 +26,7 @@ local ota_dir = DataStorage:getDataDir() .. "/ota/"
 local OTAManager = {
     -- NOTE: Each URL *MUST* end with a /
     ota_servers = {
-        "https://github.com/m-tky/koreader-tategumi/releases/latest/download/",
+        "https://github.com/aminztw/koreader-tategumi/releases/latest/download/",
     },
     ota_channels = {
         "stable",

@@ -41,14 +41,6 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Apply custom Traditional Chinese translations
-        run: |
-          if [ -d "l10n_custom/zh_TW" ]; then
-            cp l10n_custom/zh_TW/koreader.po l10n/zh_TW/koreader.po
-            cp l10n_custom/zh_TW/koreader.mo l10n/zh_TW/koreader.mo
-            echo "Successfully applied custom zh_TW translations"
-          fi
-
       - name: Apply crengine performance patch
         run: |
           if [ -f "tools/crengine-perf.patch" ]; then
@@ -110,6 +102,11 @@ jobs:
           echo "name=$(basename "$pkg")" >> "$GITHUB_OUTPUT"
           echo "Package created: $pkg"
           ls -lh "$pkg"
+
+      - name: Verify Traditional Chinese catalog
+        env:
+          PACKAGE: ${{ steps.pkg.outputs.path }}
+        run: python3 .github/scripts/check-release-translation.py "$PACKAGE"
 
       - name: Upload ${{ matrix.target }} Release Zip
         uses: actions/upload-artifact@v7

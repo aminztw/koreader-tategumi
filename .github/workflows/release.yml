@@ -87,6 +87,8 @@ jobs:
           fetch-depth: 0
       - name: Fetch submodules
         run: make fetchthirdparty
+      - name: Apply CRengine performance patch
+        run: git -C base/thirdparty/kpvcrlib/crengine apply "$PWD/tools/crengine-perf.patch"
       - name: Build
         run: make TARGET=kindlehf
       - name: Package
@@ -143,6 +145,8 @@ jobs:
           fetch-depth: 0
       - name: Fetch submodules
         run: make fetchthirdparty
+      - name: Apply CRengine performance patch
+        run: git -C base/thirdparty/kpvcrlib/crengine apply "$PWD/tools/crengine-perf.patch"
       - name: Build
         run: make TARGET=kobo
       - name: Package
@@ -430,10 +434,11 @@ jobs:
         with:
           path: artifacts/
 
-      - name: Convert ZIPs to OTA archives
+      - name: Verify translations and convert ZIPs to OTA archives
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y p7zip-full
+          python3 .github/scripts/check-release-translation.py artifacts/*/*.zip artifacts/*/*.apk
           bash .github/scripts/convert-ota-assets.sh artifacts stable "$RELEASE_TAG"
 
       - name: Create OTA aliases and versioned copies
@@ -542,10 +547,13 @@ jobs:
             | Platform | Package |
             |----------|---------|
             | Kindle (HF, Touch and newer) | [koreader-kindlehf-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-kindlehf-${{ env.RELEASE_TAG }}.zip) |
+            | Kindle | [koreader-kindle-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-kindle-${{ env.RELEASE_TAG }}.zip) |
             | Kindle (PW2 / non-HF) | [koreader-kindlepw2-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-kindlepw2-${{ env.RELEASE_TAG }}.zip) |
             | Kindle (legacy non-touch) | [koreader-kindle-legacy-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-kindle-legacy-${{ env.RELEASE_TAG }}.zip) |
             | Kobo | [koreader-kobo-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-kobo-${{ env.RELEASE_TAG }}.zip) |
+            | Kobo v5 | [koreader-kobov5-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-kobov5-${{ env.RELEASE_TAG }}.zip) |
             | PocketBook | [koreader-pocketbook-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-pocketbook-${{ env.RELEASE_TAG }}.zip) |
+            | PocketBook HF | [koreader-pocketbookhf-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-pocketbookhf-${{ env.RELEASE_TAG }}.zip) |
             | Cervantes | [koreader-cervantes-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-cervantes-${{ env.RELEASE_TAG }}.zip) |
             | reMarkable (armhf) | [koreader-remarkable-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-remarkable-${{ env.RELEASE_TAG }}.zip) |
             | reMarkable (aarch64) | [koreader-remarkable-aarch64-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-remarkable-aarch64-${{ env.RELEASE_TAG }}.zip) |

@@ -62,7 +62,7 @@ io.open = function()
     }
 end
 os.execute = function(cmd) command = cmd; return 0 end
-local server = "https://github.com/m-tky/koreader-tategumi/releases/latest/download/"
+local server = "https://github.com/aminztw/koreader-tategumi/releases/latest/download/"
 assert(updater:getOTAServer() == server)
 assert(updater:getOTAChannel() == "stable")
 updater:setOTAChannel("nightly")
