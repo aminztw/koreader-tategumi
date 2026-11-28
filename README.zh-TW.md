@@ -25,20 +25,20 @@
 ## Kindle 手動安裝與啟動
 
 1. 確認越獄與必要的後續步驟已完成，再依機型與韌體下載 ZIP。已有 KOReader 時，先退出程式並備份安裝目錄、設定與閱讀進度。
-2. 在電腦解壓 ZIP。打開 Kindle 磁碟，停在看得到 `documents` 資料夾的畫面，把解壓後的 `koreader`、`extensions` 和 ZIP 裡附帶的 `documents` 拖到這個畫面。請複製整個 `koreader/` 資料夾，裡面的所有檔案和子資料夾都要一起帶過去。如果系統詢問如何處理同名資料夾，請合併內容並保留原有書籍。下圖只列出幾個位置供你確認：
+2. 在電腦解壓 ZIP。打開 Kindle 磁碟，停在看得到 `documents` 資料夾的畫面，把解壓後的 `koreader/` 和 ZIP 裡附帶的 `documents/` 拖到這個畫面。請複製整個 `koreader/` 資料夾，裡面的所有檔案和子資料夾都要一起帶過去。如果系統詢問如何處理同名資料夾，請合併內容並保留原有書籍。下圖只列出幾個位置供你確認：
 
    ```text
    Kindle 磁碟
    ├── documents/
    │   ├── KOReader-TW.sh（ZIP 有附才會出現）
    │   └── …（原有書籍和其他檔案）
-   ├── extensions/
+   ├── extensions/（使用 KUAL 或相容啟動器時才需複製）
    └── koreader/
        ├── koreader.sh
        └── …（其餘程式檔案與子資料夾，全部保留）
    ```
 
-3. 安全退出 USB 連線後，依越獄環境啟動。支援書庫 scriptlet 的 Véra 裝置可在書庫點開 **KOReaderTW**。使用相容 KUAL 的裝置可沿用 `extensions/koreader/` 所提供的選單。
+3. 安全退出 USB 連線後，依越獄環境啟動。支援書庫 scriptlet 的 Véra 裝置可在書庫點開 **KOReaderTW**。Véra 從書庫啟動時可以略過 ZIP 裡的 `extensions/`。如果用 KUAL 或相容啟動器開啟 KOReader，請一起複製 `extensions/`，它提供 KOReader 的啟動選單。
 
 書庫啟動器從納入此功能的發布版起隨 KindleHF 與 Kindle PW2 ZIP 出貨。可在解壓後確認是否有 `documents/KOReader-TW.sh`。一般 Kindle 和 legacy 安裝包沿用原有啟動方式。手動複製安裝無須設定 KPM。英文與日文指南中的現有 KPM 指令則會安裝上游 `m-tky/koreader-tategumi` 的版本。
 
