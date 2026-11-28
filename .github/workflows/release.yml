@@ -11,8 +11,8 @@ on:
         required: true
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
 
 defaults:
   run:
@@ -533,12 +533,10 @@ jobs:
             echo "$DELIM"
           } >> $GITHUB_ENV
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: "koreader-tategumi ${{ env.RELEASE_TAG }}"
-          body: |
+      - name: Upload and publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES: |
             ${{ env.TAG_NOTES }}
 
 
@@ -559,6 +557,4 @@ jobs:
             | reMarkable (aarch64) | [koreader-remarkable-aarch64-${{ env.RELEASE_TAG }}.zip](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-remarkable-aarch64-${{ env.RELEASE_TAG }}.zip) |
             | Android (ARM) | [koreader-android-${{ env.RELEASE_TAG }}.apk](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-android-${{ env.RELEASE_TAG }}.apk) |
             | Android (ARM64) | [koreader-android-arm64-${{ env.RELEASE_TAG }}.apk](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.RELEASE_TAG }}/koreader-android-arm64-${{ env.RELEASE_TAG }}.apk) |
-          files: artifacts/**/*
-          draft: false
-          prerelease: false
+        run: python3 .github/scripts/publish-release.py "$RELEASE_TAG" artifacts

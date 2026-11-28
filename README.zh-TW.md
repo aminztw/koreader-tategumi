@@ -18,6 +18,8 @@
 
 依裝置的安裝指南操作。[Kindle 安裝](https://github.com/koreader/koreader/wiki/Installation-on-Kindle-devices) · [Kobo 安裝](https://github.com/koreader/koreader/wiki/Installation-on-Kobo-devices) · [Android 安裝](https://github.com/koreader/koreader/wiki/Installation-on-Android-devices)
 
+英文與日文指南中的 KPM 指令會安裝上游 `m-tky/koreader-tategumi` 的版本。若要安裝本專案的版本，請使用上方 Releases 的 ZIP。
+
 從原版 KOReader 切換前，先退出應用程式並備份 KOReader 目錄、設定及閱讀進度。若 Android 因簽署金鑰不同而拒絕覆蓋安裝，請先確認資料已備份，再移除舊版。從本 fork 安裝後，可在裝置的「更新」選單檢查正式版更新。
 
 ## 直排與漫畫翻頁

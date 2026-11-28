@@ -14,7 +14,7 @@ It is regularly synced with upstream KOReader (master / nightly).
 ## Downloads
 
 Download the build for your device from the
-[latest release](https://github.com/m-tky/koreader-tategumi/releases/latest).
+[latest release](https://github.com/aminztw/koreader-tategumi/releases/latest).
 
 ## Installation
 
@@ -45,9 +45,12 @@ vertical rendering implementation relies on HarfBuzz's full shaping path for
 vertical glyph substitutions and positioning; **good**, **fast**, and **off** do
 not provide the required processing.
 
-### Kindle: install with KPM
+### Kindle: install the upstream fork with KPM
 
-On a Kindle with the Kindle Package Manager (KPM), add this fork's repository once:
+The KPM packages below install releases from `m-tky/koreader-tategumi`. To install
+this repository's release, use the ZIP under [Downloads](#downloads).
+
+On a Kindle with the Kindle Package Manager (KPM), add the upstream repository once:
 
 ```text
 ;kpm add-repo https://raw.githubusercontent.com/m-tky/koreader-tategumi/master/kpm/manifest.json
@@ -92,9 +95,9 @@ switch through KOReader's update menu:
 
 1. Exit KOReader and back up your existing KOReader directory, including settings
    and reading progress.
-2. Download the migration helper **[otamanager.lua](https://github.com/m-tky/koreader-tategumi/releases/latest/download/otamanager.lua)**
+2. Download the migration helper **[otamanager.lua](https://github.com/aminztw/koreader-tategumi/releases/latest/download/otamanager.lua)**
    (also attached to v2026.10 and later releases). Alternatively, save
-   the [migration helper](https://raw.githubusercontent.com/m-tky/koreader-tategumi/master/tools/migration/otamanager.lua)
+   the [migration helper](https://raw.githubusercontent.com/aminztw/koreader-tategumi/master/tools/migration/otamanager.lua)
    as `otamanager.lua`, not `otamanager.lua.txt`.
 3. Copy it to `<koreader-dir>/frontend/ui/otamanager.lua` on your device,
    replacing the existing file.
@@ -256,7 +259,7 @@ upstream KOReader（master / nightly）と定期的に同期しています。
 ## ダウンロード
 
 ご利用の端末向けビルドを
-[最新リリース](https://github.com/m-tky/koreader-tategumi/releases/latest)
+[最新リリース](https://github.com/aminztw/koreader-tategumi/releases/latest)
 からダウンロードしてください。
 
 ## インストール
@@ -286,9 +289,12 @@ Android APK 版は Android の APK インストール機能を使います。本
 縦組み字形への置換と配置に HarfBuzz の完全なシェーピング処理を使用するため、
 **good / fast / off** では必要な処理が行われません。
 
-### Kindle: KPM を使ったインストール
+### Kindle: KPM で上流フォークをインストール
 
-Kindle Package Manager（KPM）が導入済みの Kindle では、最初に一度だけ本フォークの
+以下の KPM パッケージは `m-tky/koreader-tategumi` のリリースをインストールします。
+このリポジトリのリリースは、[ダウンロード](#ダウンロード)にある ZIP を使用してください。
+
+Kindle Package Manager（KPM）が導入済みの Kindle では、最初に一度だけ上流の
 リポジトリを追加します:
 
 ```text
@@ -334,9 +340,9 @@ KOReader の更新メニューから本フォークへ切り替えられます:
 
 1. KOReader を終了し、設定・読書進捗を含む既存の KOReader ディレクトリを
    バックアップします。
-2. 移行用の **[otamanager.lua](https://github.com/m-tky/koreader-tategumi/releases/latest/download/otamanager.lua)**
+2. 移行用の **[otamanager.lua](https://github.com/aminztw/koreader-tategumi/releases/latest/download/otamanager.lua)**
    をダウンロードします（v2026.10 以降のリリースにも添付）。
-   または[移行用ファイル](https://raw.githubusercontent.com/m-tky/koreader-tategumi/master/tools/migration/otamanager.lua)
+   または[移行用ファイル](https://raw.githubusercontent.com/aminztw/koreader-tategumi/master/tools/migration/otamanager.lua)
    を `otamanager.lua` として保存してください。末尾に `.txt` を付けないでください。
 3. 端末の `<koreader-dir>/frontend/ui/otamanager.lua` にコピーして、既存ファイルを
    上書きします。
