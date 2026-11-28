@@ -26758,3 +26758,157 @@ msgstr "註解"
 #~ msgid "ms"
 #~ msgstr "毫秒"
 
+#: frontend/apps/filemanager/filemanagerhistory.lua:172
+msgid "File does not exist"
+msgstr "檔案不存在"
+
+#: frontend/apps/filemanager/filemanagermenu.lua:404
+msgid "Info lists items per page: %1"
+msgstr "資訊清單每頁項目數：%1"
+
+#: frontend/apps/reader/modules/readerhighlight.lua:880
+msgid ""
+"        Auto-scroll to show part of the previous page when your text "
+"selection reaches the top left corner, or of the next page when it reaches "
+"the bottom right corner.\n"
+"        Except when in two columns mode, where this is limited to showing "
+"only the previous or next column."
+msgstr "        選取文字時，若選取範圍延伸到左上角，會自動捲動以顯示上一頁的一部分；若延伸到右下角，則會顯示下一頁的一部分。\n        使用雙欄模式時，只會顯示上一欄或下一欄。"
+
+#: frontend/apps/reader/modules/readertoc.lua:1161
+msgid "Show full ToC"
+msgstr "顯示完整目錄"
+
+#: frontend/apps/reader/modules/readertoc.lua:1172
+msgid "Entries per page: %1"
+msgstr "每頁項目數：%1"
+
+#: frontend/apps/reader/modules/readertoc.lua:1179
+msgid "Entries per page"
+msgstr "每頁項目數"
+
+#: frontend/apps/reader/modules/readertoc.lua:1208
+msgid "Entry font size: %1"
+msgstr "項目字型大小：%1"
+
+#: frontend/apps/reader/modules/readertoc.lua:1217
+msgid "Entry font size"
+msgstr "項目字型大小"
+
+#: frontend/ui/elements/screensaver_menu.lua:130
+msgid "Crop cover to fit screen"
+msgstr "裁切封面以符合螢幕"
+
+#: frontend/ui/widget/qrmessage.lua:305
+msgid ""
+"Some QR scanners may misinterpret certain payloads as invalid URIs. This re-"
+"encodes the symbol with a small leading six-byte prefix."
+msgstr "有些 QR 碼掃描器可能會將某些內容誤判為無效的 URI。此功能會在內容開頭加上六個位元組的前綴，再重新編碼 QR 碼。"
+
+#: frontend/ui/widget/qrmessage.lua:308
+msgid "About forced re-encoding"
+msgstr "關於強制重新編碼"
+
+#: frontend/ui/widget/qrmessage.lua:318
+msgid "Force plain-text mode"
+msgstr "強制純文字模式"
+
+#: plugins/hotkeys.koplugin/main.lua:526
+msgid "Alt"
+msgstr "Alt"
+
+#: plugins/hotkeys.koplugin/main.lua:527
+msgid "Show %1 based shortcuts"
+msgstr "顯示使用 %1 的快捷鍵"
+
+#: plugins/movetoarchive.koplugin/main.lua:144
+msgid "copied to:"
+msgstr "已複製至："
+
+#: plugins/movetoarchive.koplugin/main.lua:147
+msgid "moved to:"
+msgstr "已移動至："
+
+#: plugins/opds.koplugin/main.lua:75
+msgid "Sync all OPDS catalogs"
+msgstr "同步所有 OPDS 目錄"
+
+#: plugins/opds.koplugin/main.lua:77
+msgid "Force sync all OPDS catalogs"
+msgstr "強制同步所有 OPDS 目錄"
+
+#: plugins/opds.koplugin/opdsbrowser.lua:124
+msgid "Loading…"
+msgstr "載入中…"
+
+#: plugins/opds.koplugin/opdsbrowser.lua:144
+msgid "Set default download folder"
+msgstr "設定預設下載資料夾"
+
+#: plugins/opds.koplugin/opdsbrowser.lua:175
+msgid "Set default sync folder"
+msgstr "設定預設同步資料夾"
+
+#: plugins/opds.koplugin/opdsbrowser.lua:477
+msgid "Default download folder:"
+msgstr "預設下載資料夾："
+
+#: plugins/opds.koplugin/opdsbrowser.lua:489
+msgid "Catalog download folder:"
+msgstr "目錄的下載資料夾："
+
+#: plugins/opds.koplugin/opdsbrowser.lua:1429
+msgid "Download filename"
+msgstr "下載檔名"
+
+#: plugins/opds.koplugin/opdsbrowser.lua:1650
+msgid "Remove catalog"
+msgstr "移除目錄"
+
+#: plugins/opds.koplugin/opdsbrowser.lua:1653
+msgid "Remove OPDS catalog?"
+msgstr "要移除 OPDS 目錄嗎？"
+
+#: plugins/opds.koplugin/opdsbrowser.lua:1663
+msgid "Catalog settings"
+msgstr "目錄設定"
+
+#: plugins/opds.koplugin/opdsbrowser.lua:1735
+msgid "Default sync folder:"
+msgstr "預設同步資料夾："
+
+#: plugins/opds.koplugin/opdsbrowser.lua:1748
+msgid "Catalog sync folder:"
+msgstr "目錄的同步資料夾："
+
+#: plugins/opds.koplugin/opdsbrowser.lua:1796
+msgid "Max number of files"
+msgstr "檔案數量上限"
+
+#: plugins/opds.koplugin/opdsbrowser.lua:1797
+msgid "Max number of files to download at a time"
+msgstr "單次下載的檔案數量上限"
+
+#: plugins/opds.koplugin/opdsbrowser.lua:1830
+msgid "Please choose catalogs to sync"
+msgstr "請選擇要同步的目錄"
+
+#: plugins/statistics.koplugin/main.lua:3131
+msgid "Statistics database is busy"
+msgstr "閱讀統計資料庫忙碌中"
+
+#: plugins/texteditor.koplugin/main.lua:839
+msgid "Export last crash traceback"
+msgstr "匯出上一次當機的堆疊記錄"
+
+#: plugins/texteditor.koplugin/main.lua:846
+msgid ""
+"No crash traceback found\n"
+"\n"
+"Note: This uses a heuristic to locate the last crash traceback, which may "
+"not be accurate for all crash logs."
+msgstr "找不到當機堆疊記錄\n\n注意：本功能依據記錄的特徵推定上一次當機的堆疊記錄，可能無法正確辨識所有當機記錄。"
+
+#: plugins/vocabbuilder.koplugin/main.lua:2090
+msgid "Vocabulary builder database is busy"
+msgstr "生字本資料庫忙碌中"
