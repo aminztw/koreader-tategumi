@@ -1,6 +1,6 @@
 # koreader-tategumi
 
-**English** | [日本語](#日本語)
+**English** | [日本語](#日本語) | [繁體中文](README.zh-TW.md)
 
 **KOReader fork for Japanese vertical text (縦書き) and right-to-left manga.**
 
