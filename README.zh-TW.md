@@ -25,15 +25,17 @@
 ## Kindle 手動安裝與啟動
 
 1. 確認越獄與必要的後續步驟已完成，再依機型與韌體下載 ZIP。已有 KOReader 時，先退出程式並備份安裝目錄、設定與閱讀進度。
-2. 在電腦解壓 ZIP。打開 Kindle 磁碟，停在看得到 `documents` 資料夾的畫面，把解壓後的 `koreader`、`extensions` 和 ZIP 裡附帶的 `documents` 拖到這個畫面。如果系統詢問如何處理同名資料夾，請合併內容並保留原有書籍。以附有書庫啟動器的 ZIP 為例，複製後應是這樣：
+2. 在電腦解壓 ZIP。打開 Kindle 磁碟，停在看得到 `documents` 資料夾的畫面，把解壓後的 `koreader`、`extensions` 和 ZIP 裡附帶的 `documents` 拖到這個畫面。請複製整個 `koreader/` 資料夾，裡面的所有檔案和子資料夾都要一起帶過去。如果系統詢問如何處理同名資料夾，請合併內容並保留原有書籍。下圖只列出幾個位置供你確認：
 
    ```text
    Kindle 磁碟
    ├── documents/
-   │   └── KOReader-TW.sh
+   │   ├── KOReader-TW.sh（ZIP 有附才會出現）
+   │   └── …（原有書籍和其他檔案）
    ├── extensions/
    └── koreader/
-       └── koreader.sh
+       ├── koreader.sh
+       └── …（其餘程式檔案與子資料夾，全部保留）
    ```
 
 3. 安全退出 USB 連線後，依越獄環境啟動。支援書庫 scriptlet 的 Véra 裝置可在書庫點開 **KOReaderTW**。使用相容 KUAL 的裝置可沿用 `extensions/koreader/` 所提供的選單。
