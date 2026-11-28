@@ -48,8 +48,7 @@
 
 退出 KOReader，備份既有 KOReader 目錄、設定、書籤與閱讀進度。手動升級時，將新版檔案覆蓋到原安裝位置，保留原有目錄及使用者資料。
 
-- **舊版 zsync 安裝**：可下載本 fork 發布頁的 [一次性遷移工具](https://github.com/aminztw/koreader-tategumi/releases/latest/download/otamanager.lua)。先備份原本的 `frontend/ui/otamanager.lua`，再以遷移工具覆蓋該檔，重啟後選「更新 → 檢查更新」。遷移完成後會換回本 fork 的正常更新器。若取消遷移，請還原原本的檔案。
-- **kotasync 安裝**：依平台指南手動覆蓋安裝對應版本；舊版 zsync 遷移工具只適用於使用 zsync 的安裝。
+- **電子書閱讀器**：依裝置的安裝指南，把對應 ZIP 的內容覆蓋到原安裝位置。若你確定裝置使用舊版更新器，也可以參考 [進階遷移說明（英文）](README.md#switching-from-vanilla-koreader)。
 - **Android**：下載對應架構的 APK。若 Android 因簽章不同而拒絕覆蓋，先確認資料已備份且可還原，再卸載舊版並安裝本 fork。後續版本可從應用程式內檢查更新，再由 Android 安裝程式完成更新。
 
 ### 檢查更新
