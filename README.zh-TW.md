@@ -26,7 +26,7 @@
 
 1. 確認越獄與必要的後續步驟已完成，再依機型與韌體下載 ZIP。已有 KOReader 時，先退出程式並備份安裝目錄、設定與閱讀進度。
 2. 解壓 ZIP，把內容複製到 Kindle 磁碟根目錄，也就是原有 `documents/` 所在的那一層。合併同名資料夾，程式入口應位於 `koreader/koreader.sh`。
-3. 安全退出 USB 連線後，依越獄環境啟動。支援書庫 scriptlet 的 Véra 裝置可在書庫點開 **KOReader-TW**。使用相容 KUAL 的裝置可沿用 `extensions/koreader/` 所提供的選單。
+3. 安全退出 USB 連線後，依越獄環境啟動。支援書庫 scriptlet 的 Véra 裝置可在書庫點開 **KOReaderTW**。使用相容 KUAL 的裝置可沿用 `extensions/koreader/` 所提供的選單。
 
 書庫啟動器從納入此功能的發布版起隨 KindleHF 與 Kindle PW2 ZIP 出貨。可在解壓後確認是否有 `documents/KOReader-TW.sh`。一般 Kindle 和 legacy 安裝包沿用原有啟動方式。手動複製安裝無須設定 KPM。英文與日文指南中的現有 KPM 指令則會安裝上游 `m-tky/koreader-tategumi` 的版本。
 
@@ -56,7 +56,7 @@
 
 | 現象 | 先檢查 |
 | --- | --- |
-| 書庫沒有 **KOReader-TW** | ZIP 是否隨附啟動器、`KOReader-TW.sh` 是否在 Kindle 根目錄下的 `documents/`、越獄環境是否支援書庫 scriptlet |
+| 書庫沒有 **KOReaderTW** | ZIP 是否隨附啟動器、`KOReader-TW.sh` 是否在 Kindle 根目錄下的 `documents/`、越獄環境是否支援書庫 scriptlet |
 | 點開後立即退出 | 安裝包是否對應機型與韌體，以及程式是否位於 `koreader/koreader.sh`，有沒有多包一層解壓資料夾 |
 | 直排標點仍是橫向 | 選用支援 `vert` 和 `vrt2` 的日文字型，將「字距調整」設為「最佳」 |
 | Android 無法覆蓋安裝 | 先核對 APK 架構。若系統提示簽章不同，按上面的備份與切換步驟處理 |
